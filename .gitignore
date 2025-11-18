@@ -1,0 +1,23 @@
+node_modules
+dist
+dist-electron
+release
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.local
+*.log*
+*.tsbuildinfo
+
+# OS
+Thumbs.db
+
+# Tests
+coverage
+
+# Lock files (keep one based on your package manager)
+# Uncomment the one you DON'T use:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
