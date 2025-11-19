@@ -20,18 +20,16 @@ export const ConversationList: React.FC = () => {
     conv.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string) => {
+    if (confirm('Delete this conversation?')) {
+      deleteConversation(id);
+      setDeletingId(null);
+    }
+  };
+
+  const toggleMenu = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDeletingId(id);
-  };
-
-  const confirmDelete = (id: string) => {
-    deleteConversation(id);
-    setDeletingId(null);
-  };
-
-  const cancelDelete = () => {
-    setDeletingId(null);
+    setDeletingId(id === deletingId ? null : id);
   };
 
   return (
@@ -70,73 +68,74 @@ export const ConversationList: React.FC = () => {
           </div>
         ) : (
           filteredConversations.map((conv) => (
-            <motion.div
-              key={conv.id}
-              drag="x"
-              dragConstraints={{ left: -80, right: 0 }}
-              dragElastic={0.1}
-              onDragEnd={(_, info) => {
-                if (info.offset.x < -50) {
-                  handleDelete(conv.id, {} as any);
-                }
-              }}
-              className="relative"
-            >
-              {/* Delete button (revealed on swipe) */}
-              {deletingId === conv.id ? (
-                <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-4 gap-2">
-                  <button
-                    onClick={() => confirmDelete(conv.id)}
-                    className="text-white text-xs font-medium"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={cancelDelete}
-                    className="text-white text-xs font-medium"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-4">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="w-5 h-5"
-                  >
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
-                </div>
-              )}
-
+            <div key={conv.id} className="relative" style={{ zIndex: deletingId === conv.id ? 1000 : 1 }}>
               {/* Conversation item */}
               <motion.div
-                whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.8)' }}
+                whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.85)' }}
                 onClick={() => setCurrentConversation(conv.id)}
-                className={`relative bg-white/60 px-4 py-3 cursor-pointer border-b border-sky-border transition-colors ${
-                  currentConversationId === conv.id ? 'bg-sky-accent/10' : ''
+                className={`relative backdrop-blur-md px-4 py-3 cursor-pointer border-b border-sky-border/50 transition-all group ${
+                  currentConversationId === conv.id 
+                    ? 'bg-gradient-to-r from-sky-accent/15 to-sky-accent-light/15 border-l-2 border-l-sky-accent' 
+                    : 'bg-white/60 hover:shadow-sm'
                 }`}
               >
-                <h3 className="text-sm font-medium text-sky-text truncate mb-1">
-                  {conv.title}
-                </h3>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-sky-text-secondary">
-                    {conv.messages.length} message{conv.messages.length !== 1 ? 's' : ''}
-                  </p>
-                  <p className="text-xs text-sky-text-secondary">
-                    {formatTimestamp(conv.updatedAt)}
-                  </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-sky-text truncate mb-1">
+                      {conv.title}
+                    </h3>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xs text-sky-text-secondary">
+                        {conv.messages.length} message{conv.messages.length !== 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-sky-text-tertiary">
+                        {formatTimestamp(conv.updatedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Three-dot menu */}
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => toggleMenu(conv.id, e)}
+                      className="p-1.5 rounded-lg hover:bg-sky-accent/10 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <svg className="w-4 h-4 text-sky-text-secondary" fill="currentColor" viewBox="0 0 16 16">
+                        <circle cx="2" cy="8" r="1.5" />
+                        <circle cx="8" cy="8" r="1.5" />
+                        <circle cx="14" cy="8" r="1.5" />
+                      </svg>
+                    </motion.button>
+                    
+                    {/* Dropdown menu */}
+                    {deletingId === conv.id && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="absolute right-0 top-full mt-1 bg-white/95 backdrop-blur-xl rounded-lg shadow-sky-lg border border-sky-border/50 py-1 min-w-[120px]"
+                        style={{ zIndex: 9999 }}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(conv.id);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-sky-error hover:bg-sky-error/10 transition-colors flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Delete
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
-            </motion.div>
+            </div>
           ))
         )}
       </div>

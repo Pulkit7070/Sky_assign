@@ -135,6 +135,23 @@ export const useAppStore = create<AppState>()(
         return state.conversations.find((c) => c.id === state.currentConversationId);
       },
 
+      clearCurrentConversation: () => {
+        set((state) => {
+          const conversations = state.conversations.map((conv) => {
+            if (conv.id === state.currentConversationId) {
+              return {
+                ...conv,
+                messages: [],
+                title: 'New Conversation',
+                updatedAt: Date.now(),
+              };
+            }
+            return conv;
+          });
+          return { conversations };
+        });
+      },
+
       // Actions
       actions: initialActions,
 

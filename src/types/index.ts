@@ -54,6 +54,7 @@ export interface AppState {
   
   // Current conversation helpers
   getCurrentConversation: () => Conversation | undefined;
+  clearCurrentConversation: () => void;
   
   // Actions
   actions: Action[];

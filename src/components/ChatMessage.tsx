@@ -36,10 +36,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) =
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
     >
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-lg ${
           isUser
-            ? 'bg-sky-accent text-white'
-            : 'bg-white/60 backdrop-blur-md text-sky-text border border-sky-border'
+            ? 'bg-white/85 backdrop-blur-xl text-sky-text border-2 border-sky-accent/40 shadow-sky ring-2 ring-sky-accent/20'
+            : 'bg-white/85 backdrop-blur-xl text-sky-text border-2 border-sky-border/60 shadow-sky'
         }`}
       >
         <div className="prose prose-sm max-w-none">

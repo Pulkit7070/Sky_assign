@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   focusWindow: () => 
     ipcRenderer.invoke('focus-window'),
   
+  // Dynamic resizing
+  requestResize: (payload: { width: number; height: number; anchor?: 'top' | 'center' | 'bottom' }) =>
+    ipcRenderer.invoke('sky:request-resize', payload),
+  
   // Platform info
   getPlatform: () => 
     ipcRenderer.invoke('get-platform'),
@@ -26,6 +30,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     
     return () => {
       ipcRenderer.removeListener('window-mode-changed', subscription);
+    };
+  },
+  
+  onResizeComplete: (callback: (bounds: any) => void) => {
+    const subscription = (_: any, bounds: any) => callback(bounds);
+    ipcRenderer.on('sky:resize-complete', subscription);
+    
+    return () => {
+      ipcRenderer.removeListener('sky:resize-complete', subscription);
+    };
+  },
+  
+  // Refresh event listener
+  onRefresh: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on('sky:do-refresh', subscription);
+    
+    return () => {
+      ipcRenderer.removeListener('sky:do-refresh', subscription);
     };
   },
 });

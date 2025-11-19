@@ -73,27 +73,37 @@ export const ActionTabs: React.FC = () => {
   };
 
   return (
-    <div className="border-t border-sky-border bg-white/40 backdrop-blur-md">
-      <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+    <div className="border-t border-sky-border/30 bg-gradient-to-b from-white/70 via-white/60 to-white/50 backdrop-blur-2xl relative">
+      {/* Subtle top highlight */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+      
+      <div className="flex items-center gap-2.5 px-5 py-3.5 overflow-x-auto scrollbar-hide">
         {actions.map((action) => (
           <motion.button
             key={action.id}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => handleActionClick(action)}
             disabled={action.state === 'loading'}
-            className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+            className={`flex-shrink-0 flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all relative overflow-hidden ${
               action.state === 'ready'
-                ? 'bg-sky-accent/10 text-sky-accent hover:bg-sky-accent/20'
+                ? 'bg-white/90 text-sky-accent border border-sky-accent/25 shadow-sm hover:shadow-md hover:border-sky-accent/40 hover:bg-white'
                 : action.state === 'loading'
-                ? 'bg-gray-100 text-gray-400 cursor-wait'
+                ? 'bg-white/70 text-sky-text-secondary cursor-wait border border-sky-border/20'
                 : action.state === 'completed'
-                ? 'bg-green-50 text-green-600'
-                : 'bg-red-50 text-red-600'
+                ? 'bg-white/90 text-sky-success border border-sky-success/30 shadow-sm'
+                : 'bg-white/90 text-sky-error border border-sky-error/30 shadow-sm'
             }`}
           >
-            {getActionIcon(action)}
-            <span>{action.label}</span>
+            {/* Subtle gradient overlay for depth */}
+            {action.state === 'ready' && (
+              <div className="absolute inset-0 bg-gradient-to-br from-sky-accent/5 to-transparent pointer-events-none" />
+            )}
+            
+            <div className="relative z-10 flex items-center gap-2">
+              {getActionIcon(action)}
+              <span className="uppercase">{action.label}</span>
+            </div>
           </motion.button>
         ))}
       </div>

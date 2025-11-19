@@ -1,21 +1,19 @@
 # Sky Desktop Assistant
 
-A beautiful, floating AI assistant for your desktop built with **Electron**, **React**, **TypeScript**, **Tailwind CSS**, **Zustand**, and **Framer Motion**.
-
-![Sky Assistant Demo](https://via.placeholder.com/800x450.png?text=Sky+Desktop+Assistant)
+A premium, floating AI assistant for your desktop with macOS-inspired glassmorphism design. Built with **Electron 28+**, **React 18+**, **TypeScript 5+**, **Tailwind CSS v4**, **Zustand 4+**, and **Framer Motion 11+**.
 
 ## ✨ Features
 
-- 🎨 **Translucent, Blurred UI** - macOS-style vibrancy with Windows fallback
-- 🪟 **Dual Window Modes** - Compact floating assistant & expanded full window
-- 💬 **Persistent Conversations** - Save and manage chat history
+- 🎨 **Premium Glassmorphism** - macOS-style vibrancy with backdrop blur and translucent layers
+- 🪟 **Dual Window Modes** - Compact floating assistant (420×160px) & expanded full window (900×700px)
+- 💬 **Persistent Conversations** - Auto-save chat history with localStorage
 - 🎯 **Quick Actions** - Summarize, translate, explain code, and more
-- ⌨️ **Global Hotkeys** - `Cmd/Ctrl + Space` to toggle visibility
-- 🎭 **Smooth Animations** - Powered by Framer Motion
-- 📝 **Markdown Support** - Rich text formatting with code highlighting
-- 🔍 **Search Conversations** - Find past chats quickly
-- 👆 **Swipe Gestures** - Swipe to delete conversations
-- 🎪 **Always on Top** - Float above other windows
+- ⌨️ **Global Shortcuts** - `Ctrl + \`` to toggle visibility (customizable)
+- 🎭 **Smooth 60fps Animations** - Physics-based transitions with Framer Motion
+- 📝 **Markdown Support** - Rich text rendering with Prism.js code highlighting
+- 🔍 **Search Conversations** - Instant search with fuzzy matching
+- 🚦 **macOS Traffic Lights** - Red/yellow/green buttons with hover icons
+- 🎪 **Always on Top** - Frameless window floating above all apps
 
 ## 🚀 Quick Start
 

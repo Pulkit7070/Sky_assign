@@ -6,7 +6,10 @@ export interface ElectronAPI {
   closeWindow: () => Promise<void>;
   focusWindow: () => Promise<void>;
   getPlatform: () => Promise<NodeJS.Platform>;
+  requestResize: (payload: { width: number; height: number; anchor?: 'top' | 'center' | 'bottom' }) => Promise<any>;
   onWindowModeChanged: (callback: (mode: 'compact' | 'expanded') => void) => () => void;
+  onResizeComplete: (callback: (bounds: any) => void) => () => void;
+  onRefresh: (callback: () => void) => () => void;
 }
 
 declare global {
