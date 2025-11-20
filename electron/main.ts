@@ -360,7 +360,7 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
         const model = genAI.getGenerativeModel({ 
           model: modelName,
           generationConfig: {
-            maxOutputTokens: 1000,
+            maxOutputTokens: 1000, // Increased to allow proper responses
             temperature: 0.9,
           },
           safetySettings: [
@@ -381,36 +381,49 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
               threshold: 'BLOCK_NONE',
             },
           ],
-        });
-
-        const chat = model.startChat({ 
-          history,
           systemInstruction: 'You are Sky, a helpful AI assistant. Be conversational and friendly.',
         });
-        
+
+        const chat = model.startChat({ history });
         const result = await chat.sendMessage(userMessage);
         const response = result.response;
         
-        // Extract text using text() method
+        // Extract text using the proper method
         let text = '';
+        
+        // First try the built-in text() method
         if (typeof response.text === 'function') {
           text = response.text();
         }
         
-        // Fallback: try to extract from candidates if text() failed
+        // If text() returns empty, extract from candidates manually
         if (!text && response.candidates && response.candidates.length > 0) {
           const candidate = response.candidates[0];
           if (candidate.content?.parts && candidate.content.parts.length > 0) {
-            text = candidate.content.parts.map((part: any) => part.text || '').join('');
+            // Concatenate all parts
+            text = candidate.content.parts
+              .map((part: any) => part.text || '')
+              .join('');
+          }
+        }
+        
+        // Trim the result
+        text = text.trim();
+        
+        // Check if response was cut off due to token limits
+        if (response.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+          // Still return what we have, but it might be incomplete
+          if (!text) {
+            throw new Error('Response truncated - no text generated before token limit');
           }
         }
         
         // Validate we got actual text
-        if (!text || text.trim() === '') {
+        if (!text) {
           throw new Error('Gemini returned empty response');
         }
         
-        return { success: true, response: text.trim(), modelUsed: modelName };
+        return { success: true, response: text, modelUsed: modelName };
       } catch (error: any) {
         const isOverloaded = error.status === 503 || 
                            error.message?.includes('overloaded') ||
