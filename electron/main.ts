@@ -360,18 +360,65 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
         const model = genAI.getGenerativeModel({ 
           model: modelName,
           generationConfig: {
-            maxOutputTokens: 50, // Reduced from 150 to minimize token usage
-            temperature: 0.7,
+            maxOutputTokens: 150,
+            temperature: 0.9,
           },
-          systemInstruction: 'You are Sky. Reply in 1-2 short sentences max.', // Shorter instruction
+          safetySettings: [
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold: 'BLOCK_NONE',
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold: 'BLOCK_NONE',
+            },
+          ],
+          systemInstruction: 'You are Sky, a helpful AI assistant. Be conversational and friendly.',
         });
 
         const chat = model.startChat({ history });
         const result = await chat.sendMessage(userMessage);
         const response = result.response;
-        const text = response.text();
         
-        return { success: true, response: text, modelUsed: modelName };
+        // Extract text - try multiple methods
+        let text = '';
+        
+        // Method 1: Call text() if it's a function
+        if (typeof response.text === 'function') {
+          try {
+            text = response.text();
+          } catch (e) {
+            // Silent fail, try next method
+          }
+        }
+        
+        // Method 2: Try candidates array
+        if (!text && response.candidates && response.candidates.length > 0) {
+          const candidate = response.candidates[0];
+          if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+            text = candidate.content.parts[0].text || '';
+          }
+        }
+        
+        // Method 3: Check if text is a property
+        if (!text && response.text && typeof response.text === 'string') {
+          text = response.text;
+        }
+        
+        // Validate we got actual text
+        if (!text || text.trim() === '') {
+          throw new Error('Gemini returned empty response');
+        }
+        
+        return { success: true, response: text.trim(), modelUsed: modelName };
       } catch (error: any) {
         const isOverloaded = error.status === 503 || 
                            error.message?.includes('overloaded') ||
@@ -438,10 +485,15 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
   } catch (error: any) {
     // Provide user-friendly error messages
     let userMessage = error.message || 'Failed to get AI response';
-    if (error.status === 503 || userMessage.includes('overloaded')) {
+    
+    if (userMessage.includes('empty response')) {
+      userMessage = 'The AI returned an empty response. This may be due to content filtering or API limits. Please try rephrasing your question.';
+    } else if (error.status === 503 || userMessage.includes('overloaded')) {
       userMessage = 'AI is temporarily overloaded. Please try again in a moment.';
     } else if (error.status === 429 || userMessage.includes('quota') || userMessage.includes('429')) {
       userMessage = '⏱️ Free tier quota reached. Please wait 60 seconds before sending another message.';
+    } else if (error.status === 400 && userMessage.includes('SAFETY')) {
+      userMessage = 'Your message was blocked by safety filters. Please rephrase your question.';
     }
     
     return { success: false, error: userMessage };

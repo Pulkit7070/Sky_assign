@@ -29,18 +29,25 @@ export const sendMessageToGemini = async (
   try {
     const result = await window.electronAPI.gemini.sendMessage(message, conversationHistory);
     
-    if (result.success) {
+    // Check for successful response with actual content
+    if (result.success && result.response && result.response.trim()) {
       return {
-        text: result.response || '',
+        text: result.response.trim(),
+      };
+    } else if (result.success) {
+      // Success flag but no content
+      return {
+        text: '',
+        error: result.error || 'Received an empty response from AI. Please try again.',
       };
     } else {
+      // Explicit failure
       return {
         text: '',
         error: result.error || 'Failed to get AI response',
       };
     }
   } catch (error: any) {
-    console.error('Error calling Gemini API:', error);
     return {
       text: '',
       error: error.message || 'Failed to communicate with AI',
