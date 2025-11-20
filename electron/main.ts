@@ -13,7 +13,7 @@ let orbWindow: BrowserWindow | null = null;
 let windowMode: 'compact' | 'expanded' = 'compact';
 let isMainWindowVisible = false;
 
-const COMPACT_SIZE = { width: 420, height: 200 };
+const COMPACT_SIZE = { width: 650, height: 500 };
 const EXPANDED_SIZE = { width: 900, height: 700 };
 const ORB_SIZE = { width: 100, height: 100 };
 
@@ -299,7 +299,7 @@ ipcMain.handle('sky:request-resize', async (event, { width, height, anchor }) =>
     const workArea = display.workArea;
     
     // Clamp height to available space with margins
-    const minH = 180;
+    const minH = 100;
     const maxH = Math.min(height, workArea.height - 40);
     const clampedHeight = Math.max(minH, Math.min(maxH, height));
     

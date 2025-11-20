@@ -6,9 +6,39 @@ import { ExpandedWindow } from '@/components/ExpandedWindow';
 import { OrbPage } from '@/pages/OrbPage';
 
 function App() {
-  const { windowMode, setWindowMode } = useAppStore();
+  const { windowMode, setWindowMode, preferences } = useAppStore();
   const [isMounted, setIsMounted] = useState(false);
   const [isOrbMode, setIsOrbMode] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+
+    // Apply theme to document root
+    const applyTheme = () => {
+      const root = document.documentElement;
+      let theme = preferences.theme;
+
+      if (theme === 'system') {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+
+      root.setAttribute('data-theme', theme);
+    };
+
+    applyTheme();
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (preferences.theme === 'system') {
+        applyTheme();
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [preferences.theme]);
 
   useEffect(() => {
     setIsMounted(true);
