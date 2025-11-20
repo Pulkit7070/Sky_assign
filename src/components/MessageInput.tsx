@@ -79,7 +79,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <div className="relative flex items-end gap-2 p-2.5 border-t border-sky-divider/30 bg-gradient-to-t from-white/50 to-white/30 backdrop-blur-md">
+    <div className="relative flex items-end gap-2 p-2.5 border-t border-sky-divider/30 bg-white/30 backdrop-blur-md">
       <div className="flex-1 relative">
         <textarea
           ref={textareaRef}
@@ -91,7 +91,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onBlur={() => setInputFocused(false)}
           placeholder={placeholder}
           rows={1}
-          className="w-full resize-none bg-white/60 backdrop-blur-sm outline-none text-sky-text placeholder-sky-text-secondary text-[14px] font-sf-pro max-h-24 overflow-y-auto px-3 py-2 rounded-sky border border-sky-border/50 focus:border-sky-accent/40 focus:ring-2 focus:ring-sky-accent/20 transition-all duration-200 shadow-sky-inner"
+          className="w-full resize-none bg-white/60 backdrop-blur-sm outline-none text-sky-text placeholder-sky-text-secondary text-[14px] font-sf-pro max-h-24 overflow-y-auto px-3 py-2 rounded-sky border-0 focus:border-0 focus:ring-0 transition-all duration-200"
           style={{ minHeight: '36px' }}
         />
         {!input.trim() && (
@@ -106,7 +106,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         whileTap={{ scale: 0.92 }}
         onClick={handleSend}
         disabled={!input.trim()}
-        className="flex-shrink-0 w-9 h-9 rounded-sky bg-gradient-to-br from-sky-accent to-sky-accent-hover text-white flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 shadow-sky hover:shadow-sky-hover relative overflow-hidden group"
+        className="flex-shrink-0 w-9 h-9 rounded-sky bg-linear-to-br from-sky-accent to-sky-accent-hover text-white flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 shadow-sky hover:shadow-sky-hover relative overflow-hidden group"
       >
         <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
         <svg

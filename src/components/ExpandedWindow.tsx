@@ -98,7 +98,7 @@ export const ExpandedWindow: React.FC = () => {
         duration: 0.45,
         ease: [0.16, 1, 0.3, 1]
       }}
-      className="h-full flex bg-gradient-to-br from-sky-bg via-sky-bg-secondary to-sky-bg backdrop-blur-sky-heavy rounded-sky-xl border border-sky-border/40 shadow-sky-lg overflow-hidden relative"
+      className="h-full flex bg-linear-to-br from-sky-bg/95 via-sky-bg-secondary/90 to-sky-bg/95 backdrop-blur-2xl rounded-sky-xl border border-sky-border/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-clip relative"
     >
       {/* Refresh overlay animation */}
       <AnimatePresence>
@@ -135,7 +135,7 @@ export const ExpandedWindow: React.FC = () => {
       <div className="flex-1 flex flex-col relative">
         {/* Header with macOS traffic lights style */}
         <div
-          className="flex-shrink-0 h-14 flex items-center justify-between px-6 border-b border-sky-divider/30 bg-gradient-to-b from-white/60 via-white/40 to-transparent backdrop-blur-md relative z-10"
+          className="flex-shrink-0 h-14 flex items-center justify-between px-6 border-b border-sky-divider/30 bg-linear-to-b from-white/60 via-white/40 to-transparent backdrop-blur-md relative z-10 rounded-tr-sky-xl"
           style={{ WebkitAppRegion: 'drag' } as any}
         >
           <div className="flex items-center gap-2">
@@ -232,7 +232,9 @@ export const ExpandedWindow: React.FC = () => {
         </div>
 
         {/* Input area */}
-        <MessageInput onSend={handleSendMessage} autoFocus={false} />
+        <div className="rounded-br-sky-xl overflow-hidden">
+          <MessageInput onSend={handleSendMessage} autoFocus={false} />
+        </div>
       </div>
     </motion.div>
   );

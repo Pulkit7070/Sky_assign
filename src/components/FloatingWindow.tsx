@@ -65,8 +65,8 @@ export const FloatingWindow: React.FC = () => {
         `I'd be happy to help explain that! Here's a comprehensive overview:\n\n1. **First Point**: This is the foundational concept you need to understand.\n2. **Second Point**: Building on that, we can explore the next layer of complexity.\n3. **Third Point**: Finally, we tie everything together with practical applications.\n\nThe key is to approach this systematically and ensure you understand each step before moving forward.`,
         `Let me provide you with a detailed explanation:\n\nThe process involves several stages. Initially, you'll want to gather all relevant information and analyze the requirements carefully. This ensures you have a solid foundation.\n\nNext, consider the different approaches available. Each method has its own advantages and trade-offs, so it's important to evaluate them based on your specific needs.\n\nFinally, implementation requires careful attention to detail and thorough testing to ensure everything works as expected.`,
         `Here's a quick code example:\n\n\`\`\`javascript\nfunction greet(name) {\n  return \`Hello, \${name}! Welcome to Sky Assistant.\`;\n}\n\nconsole.log(greet('User'));\n\`\`\`\n\nThis demonstrates the basic syntax and structure you'll need.`,
-        `Done! ✓`,
-        `Perfect!`,
+        `Done! The answer is being processed`,
+        `Perfect! You are on right track`,
         `Here are the key points:\n• First important item\n• Second consideration\n• Third aspect to remember\n• Fourth detail to note\n• Final takeaway`,
       ];
       const randomResponse = responses[Math.floor(Math.random() * responses.length)];
@@ -106,9 +106,11 @@ export const FloatingWindow: React.FC = () => {
         duration: 0.35,
         ease: [0.16, 1, 0.3, 1]
       }}
-      className="h-full flex flex-col bg-gradient-to-br from-sky-bg via-sky-bg-secondary to-sky-bg backdrop-blur-sky-heavy rounded-sky-lg border border-sky-border/40 shadow-sky-lg overflow-hidden relative"
+      className="h-full flex flex-col bg-linear-to-br from-sky-bg/95 via-sky-bg-secondary/90 to-sky-bg/95 backdrop-blur-2xl rounded-sky-lg border border-sky-border/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-clip relative"
       style={{
         WebkitAppRegion: 'drag',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
       } as any}
     >
       {/* Refresh overlay animation */}
@@ -141,7 +143,7 @@ export const FloatingWindow: React.FC = () => {
       
       {/* Draggable header area - reduced height */}
       <div
-        className="relative flex-shrink-0 h-7 flex items-center justify-between px-3 border-b border-sky-divider/30 bg-gradient-to-b from-white/20 to-transparent"
+        className="relative flex-shrink-0 h-7 flex items-center justify-between px-3 border-b border-sky-divider/30 bg-linear-to-b from-white/20 to-transparent rounded-t-sky-lg"
         style={{ WebkitAppRegion: 'drag' } as any}
       >
         <div className="flex items-center gap-1.5">
@@ -156,23 +158,6 @@ export const FloatingWindow: React.FC = () => {
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent" />
             <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/20" />
           </motion.button>
-          <motion.div
-            className="w-2.5 h-2.5 rounded-full bg-sky-warning shadow-inner relative"
-            whileHover={{ scale: 1.15 }}
-            title="Minimize"
-          >
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent" />
-          </motion.div>
-          <motion.div
-            className="w-2.5 h-2.5 rounded-full bg-sky-error shadow-inner relative cursor-pointer"
-            whileHover={{ scale: 1.15, boxShadow: '0 0 12px rgba(255, 59, 48, 0.4)' }}
-            whileTap={{ scale: 0.85 }}
-            onClick={() => window.electronAPI?.closeWindow()}
-            title="Close"
-            style={{ WebkitAppRegion: 'no-drag' } as any}
-          >
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/40 to-transparent" />
-          </motion.div>
         </div>
         <span className="text-[10px] text-sky-text-secondary font-sf-pro font-medium tracking-wide">
           Sky Assistant
@@ -197,7 +182,7 @@ export const FloatingWindow: React.FC = () => {
       )}
 
       {/* Input area */}
-      <div style={{ WebkitAppRegion: 'no-drag' } as any}>
+      <div className="rounded-b-sky-lg overflow-hidden" style={{ WebkitAppRegion: 'no-drag' } as any}>
         <MessageInput onSend={handleSendMessage} autoFocus={windowMode === 'compact'} />
       </div>
     </motion.div>

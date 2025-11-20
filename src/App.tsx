@@ -3,21 +3,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
 import { FloatingWindow } from '@/components/FloatingWindow';
 import { ExpandedWindow } from '@/components/ExpandedWindow';
+import { OrbPage } from '@/pages/OrbPage';
 
 function App() {
   const { windowMode, setWindowMode } = useAppStore();
   const [isMounted, setIsMounted] = useState(false);
+  const [isOrbMode, setIsOrbMode] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    
+    const hash = window.location.hash;
+    if (hash === '#/orb') {
+      setIsOrbMode(true);
+      return;
+    }
 
-    // Listen for window mode changes from main process
     if (window.electronAPI) {
       const unsubscribe = window.electronAPI.onWindowModeChanged((mode) => {
         setWindowMode(mode);
       });
 
-      // Sync initial window mode
       window.electronAPI.getWindowMode().then((mode) => {
         setWindowMode(mode);
       });
@@ -26,9 +32,12 @@ function App() {
     }
   }, [setWindowMode]);
 
-  // Prevent flash of wrong content
   if (!isMounted) {
     return null;
+  }
+
+  if (isOrbMode) {
+    return <OrbPage />;
   }
 
   return (

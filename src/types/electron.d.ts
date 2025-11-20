@@ -10,6 +10,7 @@ export interface ElectronAPI {
   onWindowModeChanged: (callback: (mode: 'compact' | 'expanded') => void) => () => void;
   onResizeComplete: (callback: (bounds: any) => void) => () => void;
   onRefresh: (callback: () => void) => () => void;
+  orbClicked: () => Promise<boolean>;
 }
 
 declare global {

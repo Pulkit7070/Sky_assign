@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, nativeTheme } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import windowStateKeeper from 'electron-window-state';
@@ -9,10 +9,13 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 const isMac = process.platform === 'darwin';
 
 let mainWindow: BrowserWindow | null = null;
+let orbWindow: BrowserWindow | null = null;
 let windowMode: 'compact' | 'expanded' = 'compact';
+let isMainWindowVisible = false;
 
 const COMPACT_SIZE = { width: 420, height: 200 };
 const EXPANDED_SIZE = { width: 900, height: 700 };
+const ORB_SIZE = { width: 100, height: 100 };
 
 function createWindow() {
   // Load window state
@@ -29,6 +32,9 @@ function createWindow() {
   const x = width - COMPACT_SIZE.width - 20;
   const y = height - COMPACT_SIZE.height - 20;
 
+  // Get system accent color for dynamic tinting
+  const accentColor = nativeTheme.shouldUseDarkColors ? '#1e1e2e' : '#f5f5f7';
+  
   mainWindow = new BrowserWindow({
     x: windowState.x || x,
     y: windowState.y || y,
@@ -38,13 +44,15 @@ function createWindow() {
     minHeight: 180,
     frame: false,
     transparent: true,
-    resizable: true, // Allow resizing in compact mode
+    resizable: true,
     alwaysOnTop: true,
     skipTaskbar: false,
     hasShadow: true,
-    backgroundColor: isMac ? undefined : '#00000000',
-    vibrancy: isMac ? 'sidebar' : undefined, // macOS only
-    visualEffectState: isMac ? 'active' : undefined, // macOS only
+    show: false,
+    backgroundColor: accentColor + '20', // Add transparency
+    vibrancy: isMac ? 'under-window' : undefined,
+    visualEffectState: isMac ? 'active' : undefined,
+    backgroundMaterial: isMac ? undefined : 'acrylic',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -69,10 +77,48 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // macOS-specific: Apply vibrancy effect
   if (isMac && mainWindow) {
     mainWindow.setVibrancy('sidebar');
   }
+}
+
+function createOrbWindow() {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+
+  orbWindow = new BrowserWindow({
+    width: ORB_SIZE.width,
+    height: ORB_SIZE.height,
+    x: width - ORB_SIZE.width - 20,
+    y: height - ORB_SIZE.height - 20,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    focusable: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, isDev ? 'preload.mjs' : 'preload.js'),
+    },
+  });
+
+  if (isDev) {
+    orbWindow.loadURL('http://localhost:5173/#/orb');
+  } else {
+    orbWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'orb' });
+  }
+
+  // Show orb window once loaded
+  orbWindow.once('ready-to-show', () => {
+    orbWindow?.show();
+  });
+
+  orbWindow.on('closed', () => {
+    orbWindow = null;
+  });
 }
 
 function toggleWindowMode(mode?: 'compact' | 'expanded') {
@@ -133,10 +179,10 @@ function toggleWindowMode(mode?: 'compact' | 'expanded') {
 }
 
 function registerShortcuts() {
-  // Try multiple shortcuts in order of preference (less likely to conflict)
+  // Primary shortcut: Ctrl+Shift+Space (Windows) / Command+Shift+Space (Mac)
   const shortcuts = isMac 
-    ? ['Command+`', 'CommandOrControl+Shift+Y', 'Command+Shift+Space']
-    : ['Control+`', 'CommandOrControl+Shift+Y', 'Control+Alt+K'];
+    ? ['Command+Shift+Space', 'Command+`', 'CommandOrControl+Shift+Y']
+    : ['Control+Shift+Space', 'Control+`', 'CommandOrControl+Shift+Y'];
   
   let registered = false;
   
@@ -150,13 +196,18 @@ function registerShortcuts() {
 
         if (mainWindow.isVisible()) {
           mainWindow.hide();
+          isMainWindowVisible = false;
         } else {
           mainWindow.show();
           mainWindow.focus();
+          isMainWindowVisible = true;
         }
       });
 
-      if (registered) break;
+      if (registered) {
+        console.log(`✓ Registered hotkey: ${shortcut}`);
+        break;
+      }
     } catch (error) {
       // Try next shortcut
     }
@@ -171,6 +222,23 @@ function registerShortcuts() {
 }
 
 // IPC Handlers
+ipcMain.handle('orb-clicked', async () => {
+  if (!mainWindow) {
+    createWindow();
+  }
+  
+  if (isMainWindowVisible) {
+    mainWindow?.hide();
+    isMainWindowVisible = false;
+  } else {
+    mainWindow?.show();
+    mainWindow?.focus();
+    isMainWindowVisible = true;
+  }
+  
+  return isMainWindowVisible;
+});
+
 ipcMain.handle('toggle-window-mode', async (_, mode?: 'compact' | 'expanded') => {
   toggleWindowMode(mode);
   return windowMode;
@@ -191,9 +259,15 @@ ipcMain.handle('minimize-window', async () => {
 });
 
 ipcMain.handle('close-window', async () => {
-  if (mainWindow) {
-    mainWindow.close();
+  // Close all windows first
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.destroy();
   }
+  if (orbWindow && !orbWindow.isDestroyed()) {
+    orbWindow.destroy();
+  }
+  // Quit the entire application
+  app.quit();
 });
 
 ipcMain.handle('focus-window', async () => {
@@ -271,14 +345,13 @@ ipcMain.handle('sky:request-resize', async (event, { width, height, anchor }) =>
 
 // App lifecycle
 app.whenReady().then(() => {
-  // Set app user model id for Windows (fixes cache issues)
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.sky.assistant');
   }
   
   createWindow();
+  createOrbWindow();
   
-  // Register shortcuts after window is created and app is fully ready
   setTimeout(() => {
     registerShortcuts();
   }, 1000);
@@ -286,6 +359,7 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+      createOrbWindow();
     }
   });
 });

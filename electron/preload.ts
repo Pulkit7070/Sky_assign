@@ -51,4 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('sky:do-refresh', subscription);
     };
   },
+  
+  // Orb interaction
+  orbClicked: () => ipcRenderer.invoke('orb-clicked'),
 });
