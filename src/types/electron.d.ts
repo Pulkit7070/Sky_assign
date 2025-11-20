@@ -5,6 +5,7 @@ export interface ElectronAPI {
   minimizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
   focusWindow: () => Promise<void>;
+  openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
   getPlatform: () => Promise<NodeJS.Platform>;
   requestResize: (payload: { width: number; height: number; anchor?: 'top' | 'center' | 'bottom' }) => Promise<any>;
   onWindowModeChanged: (callback: (mode: 'compact' | 'expanded') => void) => () => void;
@@ -28,6 +29,13 @@ export interface ElectronAPI {
   };
   onCalendarAuthSuccess: (callback: () => void) => () => void;
   onCalendarAuthError: (callback: (error: any) => void) => () => void;
+  gemini: {
+    sendMessage: (message: string, conversationHistory: any[]) => Promise<{
+      success: boolean;
+      response?: string;
+      error?: string;
+    }>;
+  };
 }
 
 declare global {

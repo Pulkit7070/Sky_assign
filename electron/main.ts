@@ -3,6 +3,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import windowStateKeeper from 'electron-window-state';
 import { GoogleCalendarService } from '../src/services/google-calendar.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,16 +62,48 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, isDev ? 'preload.mjs' : 'preload.js'),
-      webSecurity: true,
+      webSecurity: !isDev,
+      devTools: isDev,
     },
   });
 
   // Track window state
   windowState.manage(mainWindow);
 
+  // Handle external links - open in browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
+
+  // Prevent navigation to external sites
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isLocal = url.startsWith('http://localhost') || url.startsWith('file://');
+    if (!isLocal) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
+  // Set CSP for development
+  if (isDev) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': ["default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://generativelanguage.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'"]
+        }
+      });
+    });
+  }
+
   // Load app
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    mainWindow.loadURL(devServerUrl);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -106,7 +143,8 @@ function createOrbWindow() {
   });
 
   if (isDev) {
-    orbWindow.loadURL('http://localhost:5173/#/orb');
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    orbWindow.loadURL(`${devServerUrl}/#/orb`);
   } else {
     orbWindow.loadFile(path.join(__dirname, '../dist/index.html'), { hash: 'orb' });
   }
@@ -277,6 +315,16 @@ ipcMain.handle('focus-window', async () => {
   }
 });
 
+ipcMain.handle('open-external', async (_, url: string) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to open external URL:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Refresh/New Chat handler
 ipcMain.handle('sky:refresh', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -289,6 +337,114 @@ ipcMain.handle('sky:refresh', async (event) => {
   } catch (error) {
     console.error('Refresh error:', error);
     return { error: String(error) };
+  }
+});
+
+// Gemini API handler with retry logic and fallback models
+ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }) => {
+  // Helper function to sleep/delay
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Retry with exponential backoff (reduced retries for free tier)
+  async function callGeminiWithRetry(
+    genAI: any,
+    modelName: string,
+    history: any[],
+    userMessage: string,
+    maxRetries = 0 // No retries - fail fast to avoid quota burn
+  ): Promise<any> {
+    const delays = [3000]; // Single 3s delay if needed
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          generationConfig: {
+            maxOutputTokens: 50, // Reduced from 150 to minimize token usage
+            temperature: 0.7,
+          },
+          systemInstruction: 'You are Sky. Reply in 1-2 short sentences max.', // Shorter instruction
+        });
+
+        const chat = model.startChat({ history });
+        const result = await chat.sendMessage(userMessage);
+        const response = result.response;
+        const text = response.text();
+        
+        return { success: true, response: text, modelUsed: modelName };
+      } catch (error: any) {
+        const isOverloaded = error.status === 503 || 
+                           error.message?.includes('overloaded') ||
+                           error.message?.includes('503');
+        
+        // If this is the last retry or not an overload error, throw
+        if (attempt === maxRetries || !isOverloaded) {
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const delay = delays[attempt];
+        await sleep(delay);
+      }
+    }
+    
+    throw new Error('Max retries exceeded');
+  }
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('Gemini API key not found');
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // For free tier: minimal conversation history to reduce token usage
+    // Only use last 2 messages (1 user + 1 assistant) instead of 6
+    const mappedHistory = conversationHistory.slice(-2).map((msg: any) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }],
+    }));
+
+    // Gemini requires first message to be from 'user'
+    // Find the first 'user' message and start from there
+    let history = [];
+    let foundFirstUser = false;
+    for (const msg of mappedHistory) {
+      if (!foundFirstUser && msg.role === 'user') {
+        foundFirstUser = true;
+      }
+      if (foundFirstUser) {
+        history.push(msg);
+      }
+    }
+
+    // Use single stable model for free tier (no fallbacks to avoid quota exhaustion)
+    const modelName = 'gemini-2.5-flash'; // Latest model
+    
+    try {
+      const result = await callGeminiWithRetry(genAI, modelName, history, message);
+      return { success: true, response: result.response };
+    } catch (error: any) {
+      
+      // Check if it's a quota error (429)
+      if (error.status === 429 || error.message?.includes('quota') || error.message?.includes('429')) {
+        throw new Error('API quota exceeded. Please wait a minute before trying again.');
+      }
+      
+      throw error;
+    }
+    
+  } catch (error: any) {
+    // Provide user-friendly error messages
+    let userMessage = error.message || 'Failed to get AI response';
+    if (error.status === 503 || userMessage.includes('overloaded')) {
+      userMessage = 'AI is temporarily overloaded. Please try again in a moment.';
+    } else if (error.status === 429 || userMessage.includes('quota') || userMessage.includes('429')) {
+      userMessage = '⏱️ Free tier quota reached. Please wait 60 seconds before sending another message.';
+    }
+    
+    return { success: false, error: userMessage };
   }
 });
 
@@ -337,10 +493,8 @@ ipcMain.handle('calendar:initialize', async () => {
       redirect_uris: credentials.installed.redirect_uris,
     });
     
-    console.log('✅ Calendar service initialized successfully');
     return { success: true, authenticated: calendarService.isAuthenticated() };
   } catch (error: any) {
-    console.error('❌ Calendar initialization error:', error);
     return { success: false, error: error.message };
   }
 });
@@ -382,7 +536,6 @@ ipcMain.handle('calendar:authenticate', async () => {
             mainWindow.webContents.send('calendar:auth-success');
           }
         } catch (error) {
-          console.error('Failed to exchange code:', error);
           if (mainWindow) {
             mainWindow.webContents.send('calendar:auth-error', error);
           }
@@ -397,7 +550,6 @@ ipcMain.handle('calendar:authenticate', async () => {
     
     return { success: true, authUrl };
   } catch (error: any) {
-    console.error('Authentication error:', error);
     return { success: false, error: error.message };
   }
 });
@@ -412,7 +564,6 @@ ipcMain.handle('calendar:authenticate-with-code', async (_, code: string) => {
     
     return { success: true };
   } catch (error: any) {
-    console.error('Authentication with code error:', error);
     return { success: false, error: error.message };
   }
 });
@@ -431,22 +582,16 @@ ipcMain.handle('calendar:check-auth', async () => {
 
 ipcMain.handle('calendar:create-event', async (_, eventData) => {
   try {
-    console.log('📅 [Main] Received create-event request:', eventData);
-    
     if (!calendarService) {
-      console.error('❌ [Main] Calendar service not initialized');
       return { success: false, error: 'Calendar service not initialized' };
     }
     
     const isAuth = calendarService.isAuthenticated();
-    console.log('🔐 [Main] Authentication status:', isAuth);
     
     if (!isAuth) {
-      console.error('❌ [Main] Not authenticated');
       return { success: false, error: 'Not authenticated. Please sign in to Google Calendar.' };
     }
     
-    console.log('✅ [Main] Creating event...');
     const result = await calendarService.createEvent({
       summary: eventData.summary,
       description: eventData.description,
@@ -456,11 +601,8 @@ ipcMain.handle('calendar:create-event', async (_, eventData) => {
       attendees: eventData.attendees,
     });
     
-    console.log('📅 [Main] Event creation result:', result);
-    
     return result;
   } catch (error: any) {
-    console.error('Create event error:', error);
     return { success: false, error: error.message };
   }
 });
@@ -475,7 +617,6 @@ ipcMain.handle('calendar:sign-out', async () => {
     
     return { success: true };
   } catch (error: any) {
-    console.error('Sign out error:', error);
     return { success: false, error: error.message };
   }
 });

@@ -179,7 +179,7 @@ export class GoogleCalendarService {
     try {
       await fs.promises.writeFile(this.TOKEN_PATH, JSON.stringify(tokens));
     } catch (error) {
-      console.error('Error saving token:', error);
+      // Silently fail token save
     }
   }
 
@@ -214,7 +214,7 @@ export class GoogleCalendarService {
         await fs.promises.unlink(this.TOKEN_PATH);
       }
     } catch (error) {
-      console.error('Error clearing token:', error);
+      // Silently fail token clear
     }
   }
 }

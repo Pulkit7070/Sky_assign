@@ -5,18 +5,26 @@ import { ConversationList } from './ConversationList';
 import { MessageInput } from './MessageInput';
 import { ChatMessage } from './ChatMessage';
 import { ActionTabs } from './ActionTabs';
+import { CalendarConfirmModal } from './CalendarConfirmModal';
+import { NLPParser, ParsedEvent } from '../services/nlp-parser';
+import { sendMessageToGemini, isGeminiAvailable } from '../services/gemini-service';
 
 export const ExpandedWindow: React.FC = () => {
   const {
     getCurrentConversation,
     addConversation,
     addMessage,
+    updateMessage,
     currentConversationId,
     clearCurrentConversation,
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = React.useState(false);
+  const [parsedCalendarEvent, setParsedCalendarEvent] = React.useState<ParsedEvent | null>(null);
+  const [isCreatingEvent, setIsCreatingEvent] = React.useState(false);
+  const [isCalendarInitialized, setIsCalendarInitialized] = React.useState(false);
   const currentConversation = getCurrentConversation();
 
   const scrollToBottom = () => {
@@ -36,12 +44,152 @@ export const ExpandedWindow: React.FC = () => {
     });
   }, []);
 
+  // Initialize Google Calendar on mount
+  useEffect(() => {
+    const initCalendar = async () => {
+      try {
+        if (!window.electronAPI?.calendar) {
+          setIsCalendarInitialized(true);
+          return;
+        }
+        
+        const result = await window.electronAPI.calendar.initialize();
+        
+        if (result.success) {
+          setIsCalendarInitialized(true);
+        } else {
+          setIsCalendarInitialized(true);
+        }
+      } catch (error) {
+        setIsCalendarInitialized(true);
+      }
+    };
+    
+    initCalendar();
+
+    const handleAuthSuccess = () => {
+      addMessage(currentConversationId || '', {
+        role: 'assistant',
+        content: 'Successfully connected to Google Calendar. You can now create events.',
+        status: 'sent',
+      });
+      
+      if (parsedCalendarEvent && isCalendarModalOpen) {
+        handleCalendarConfirm();
+      }
+    };
+
+    const handleAuthError = (error: any) => {
+      addMessage(currentConversationId || '', {
+        role: 'assistant',
+        content: `Authentication failed: ${error.message || 'Unknown error'}`,
+        status: 'sent',
+      });
+    };
+
+    if (window.electronAPI?.onCalendarAuthSuccess) {
+      const unsubSuccess = window.electronAPI.onCalendarAuthSuccess(handleAuthSuccess);
+      const unsubError = window.electronAPI.onCalendarAuthError?.(handleAuthError);
+      
+      return () => {
+        unsubSuccess?.();
+        unsubError?.();
+      };
+    }
+  }, [parsedCalendarEvent, isCalendarModalOpen]);
+
+  const handleCalendarConfirm = async () => {
+    if (!parsedCalendarEvent) {
+      return;
+    }
+
+    setIsCreatingEvent(true);
+
+    try {
+      const authCheck = await window.electronAPI.calendar.checkAuth();
+      
+      if (!authCheck.authenticated) {
+        const authResult = await window.electronAPI.calendar.authenticate();
+        
+        if (!authResult.success) {
+          throw new Error(authResult.error || 'Authentication failed');
+        }
+
+        addMessage(currentConversationId!, {
+          role: 'assistant',
+          content: 'Authentication window opened. Please complete the login and try creating the event again.',
+          status: 'sent',
+        });
+
+        setIsCalendarModalOpen(false);
+        setIsCreatingEvent(false);
+        return;
+      }
+
+      const result = await window.electronAPI.calendar.createEvent({
+        summary: parsedCalendarEvent.title,
+        startDateTime: parsedCalendarEvent.startDateTime.toISOString(),
+        endDateTime: parsedCalendarEvent.endDateTime.toISOString(),
+      });
+
+      if (result.success) {
+        const successMessage = result.eventLink
+          ? `Event created successfully.\n\n**${parsedCalendarEvent.title}**\n${parsedCalendarEvent.startDateTime.toLocaleString()}\n\n[View in Google Calendar](${result.eventLink})`
+          : `Event "${parsedCalendarEvent.title}" created successfully.`;
+
+        addMessage(currentConversationId!, {
+          role: 'assistant',
+          content: successMessage,
+          status: 'sent',
+        });
+      } else {
+        throw new Error(result.error || 'Failed to create event');
+      }
+    } catch (error: any) {
+      addMessage(currentConversationId!, {
+        role: 'assistant',
+        content: `Failed to create event: ${error.message}`,
+        status: 'sent',
+      });
+    } finally {
+      setIsCalendarModalOpen(false);
+      setIsCreatingEvent(false);
+      setParsedCalendarEvent(null);
+    }
+  };
+
+  const handleCalendarCancel = () => {
+    setIsCalendarModalOpen(false);
+    setParsedCalendarEvent(null);
+  };
+
   const handleSendMessage = async (content: string) => {
     let conversationId = currentConversationId;
 
     // Create new conversation if none exists
     if (!conversationId) {
       conversationId = addConversation();
+    }
+
+    // Check if message is a calendar intent
+    const isCalendarMessage = NLPParser.isCalendarIntent(content);
+    
+    if (isCalendarInitialized && isCalendarMessage) {
+      const parsedEvent = NLPParser.parseEventFromText(content);
+      
+      if (parsedEvent.isValid) {
+        // Add user message
+        addMessage(conversationId, {
+          role: 'user',
+          content,
+          status: 'sent',
+        });
+
+        // Show calendar confirmation modal
+        setParsedCalendarEvent(parsedEvent);
+        setIsCalendarModalOpen(true);
+        return;
+      }
     }
 
     // Add user message
@@ -51,30 +199,66 @@ export const ExpandedWindow: React.FC = () => {
       status: 'sent',
     });
 
-    setTimeout(() => {
-      const responses = [
-        `Hi! 👋`,
-        `Got it!`,
-        `Sure, I can help with that.`,
-        `Hello! How can I assist you?`,
-        `I'm Sky Assistant, your AI companion. I can help you with various tasks like answering questions, providing explanations, and assisting with your daily workflow. What would you like to know?`,
-        `That's a great question! Let me break it down for you: First, we need to understand the core concept. Then, we can explore practical applications. Finally, I'll provide some specific examples.`,
-        `Here's what I found: The solution involves multiple steps. You'll need to consider both the technical aspects and the practical implementation. Would you like me to go into more detail?`,
-        `I'd be happy to help explain that! Here's a comprehensive overview:\n\n1. **First Point**: This is the foundational concept you need to understand.\n2. **Second Point**: Building on that, we can explore the next layer of complexity.\n3. **Third Point**: Finally, we tie everything together with practical applications.\n\nThe key is to approach this systematically and ensure you understand each step before moving forward.`,
-        `Let me provide you with a detailed explanation:\n\nThe process involves several stages. Initially, you'll want to gather all relevant information and analyze the requirements carefully. This ensures you have a solid foundation.\n\nNext, consider the different approaches available. Each method has its own advantages and trade-offs, so it's important to evaluate them based on your specific needs.\n\nFinally, implementation requires careful attention to detail and thorough testing to ensure everything works as expected.`,
-        `Here's a quick code example:\n\n\`\`\`javascript\nfunction greet(name) {\n  return \`Hello, \${name}! Welcome to Sky Assistant.\`;\n}\n\nconsole.log(greet('User'));\n\`\`\`\n\nThis demonstrates the basic syntax and structure you'll need.`,
-        `Done! ✓`,
-        `Perfect!`,
-        `Here are the key points:\n• First important item\n• Second consideration\n• Third aspect to remember\n• Fourth detail to note\n• Final takeaway`,
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      addMessage(conversationId!, {
-        role: 'assistant',
-        content: randomResponse,
+    // Add placeholder assistant message and store its ID for updates
+    const tempId = `temp-${Date.now()}`;
+    addMessage(conversationId, {
+      role: 'assistant',
+      content: 'Thinking...',
+      status: 'sending',
+    } as any);
+
+    // Get the actual ID of the just-added message
+    const messages = getCurrentConversation()?.messages || [];
+    const placeholderMessage = messages[messages.length - 1];
+    const placeholderId = placeholderMessage?.id;
+
+    // Check if Gemini is available
+    if (!isGeminiAvailable()) {
+      updateMessage(conversationId, placeholderId, {
+        content: 'Gemini API is not configured. Please add your GEMINI_API_KEY to the .env file.',
+        status: 'error',
+      });
+      return;
+    }
+
+    try {
+      // Get conversation history for context (last 6 messages)
+      const currentMessages = getCurrentConversation()?.messages || [];
+      const history = currentMessages.slice(-6).map((msg: any) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Call Gemini API
+      const geminiResponse = await sendMessageToGemini(content, history);
+
+      if (geminiResponse.error) {
+        updateMessage(conversationId, placeholderId, {
+          content: `Error: ${geminiResponse.error}`,
+          status: 'error',
+        });
+        return;
+      }
+
+      if (!geminiResponse.text || geminiResponse.text.trim() === '') {
+        updateMessage(conversationId, placeholderId, {
+          content: 'Received an empty response from the AI. Please try again.',
+          status: 'error',
+        });
+        return;
+      }
+
+      // Success - update placeholder with actual response
+      updateMessage(conversationId, placeholderId, {
+        content: geminiResponse.text,
         status: 'sent',
       });
-    }, 1000);
+    } catch (error: any) {
+      updateMessage(conversationId, placeholderId, {
+        content: `Failed to get AI response: ${error.message || 'Unknown error'}`,
+        status: 'error',
+      });
+    }
   };
 
   const handleCollapse = async () => {
@@ -236,6 +420,15 @@ export const ExpandedWindow: React.FC = () => {
           <MessageInput onSend={handleSendMessage} autoFocus={false} />
         </div>
       </div>
+
+      {/* Calendar Modal */}
+      <CalendarConfirmModal 
+        isOpen={isCalendarModalOpen}
+        parsedEvent={parsedCalendarEvent}
+        onConfirm={handleCalendarConfirm}
+        onCancel={handleCalendarCancel}
+        isCreating={isCreatingEvent}
+      />
     </motion.div>
   );
 };

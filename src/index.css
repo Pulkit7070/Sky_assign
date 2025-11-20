@@ -382,7 +382,7 @@ pre[class*="language-"] {
 
 /* Theme-aware text styles */
 .theme-text {
-  color: #1D1D1F;
+  color: #F5F5F7;
   transition: color 0.3s ease;
 }
 
@@ -392,29 +392,29 @@ pre[class*="language-"] {
 
 /* Theme-aware button styles */
 .theme-button {
-  background-color: rgba(100, 180, 255, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(100, 150, 255, 1);
+  background-color: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.95);
   transition: all 0.3s ease;
 }
 
 .theme-button:hover {
-  background-color: rgba(100, 180, 255, 0.35);
+  background-color: rgba(255, 255, 255, 0.35);
 }
 
 [data-theme="dark"] .theme-button {
-  background-color: rgba(100, 150, 220, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(200, 220, 255, 1);
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 [data-theme="dark"] .theme-button:hover {
-  background-color: rgba(100, 150, 220, 0.3);
+  background-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Theme-aware logo */
 .theme-logo {
-  background: linear-gradient(to bottom right, #4A5568, #1A202C);
+  background: linear-gradient(to bottom right, #E2E8F0, #CBD5E0);
   transition: background 0.3s ease;
 }
 
@@ -423,12 +423,12 @@ pre[class*="language-"] {
 }
 
 .theme-logo-border {
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   transition: border-color 0.3s ease;
 }
 
 [data-theme="dark"] .theme-logo-border {
-  border: 2px solid rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 [data-theme="dark"] .border-white\/20 {

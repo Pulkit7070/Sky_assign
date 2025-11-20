@@ -8,7 +8,7 @@
     "dev": "vite --port 5173",
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"vite --port 5173\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:dev": "concurrently \"vite --port 5173\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "electron:build": "vite build && electron-builder"
   },
   "keywords": [
@@ -21,7 +21,9 @@
   "author": "Sky Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "chrono-node": "^2.9.0",
+    "dotenv": "^17.2.3",
     "electron-window-state": "^5.0.3",
     "framer-motion": "^11.0.0",
     "googleapis": "^166.0.0",
@@ -41,6 +43,7 @@
     "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
+    "cross-env": "^10.1.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "tailwindcss": "^4.1.17",

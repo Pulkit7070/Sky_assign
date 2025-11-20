@@ -106,6 +106,22 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) =
                 ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
                 ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
                 li: ({ children }) => <li className="mb-1">{children}</li>,
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (href && window.electronAPI?.openExternal) {
+                        window.electronAPI.openExternal(href);
+                      } else if (href) {
+                        window.open(href, '_blank');
+                      }
+                    }}
+                    className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                  >
+                    {children}
+                  </a>
+                ),
               }}
             >
               {message.content}

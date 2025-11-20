@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   focusWindow: () => 
     ipcRenderer.invoke('focus-window'),
   
+  // Open external URLs
+  openExternal: (url: string) => 
+    ipcRenderer.invoke('open-external', url),
+  
   // Dynamic resizing
   requestResize: (payload: { width: number; height: number; anchor?: 'top' | 'center' | 'bottom' }) =>
     ipcRenderer.invoke('sky:request-resize', payload),
@@ -94,5 +98,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener('calendar:auth-error', subscription);
     };
+  },
+
+  // Gemini API
+  gemini: {
+    sendMessage: (message: string, conversationHistory: any[]) => 
+      ipcRenderer.invoke('gemini:send-message', { message, conversationHistory }),
   },
 });

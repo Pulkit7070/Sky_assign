@@ -7,12 +7,14 @@ import { AttachmentModal } from './AttachmentModal';
 import { SettingsModal } from './SettingsModal';
 import { CalendarConfirmModal } from './CalendarConfirmModal';
 import { NLPParser, ParsedEvent } from '../services/nlp-parser';
+import { sendMessageToGemini, isGeminiAvailable } from '../services/gemini-service';
 
 export const FloatingWindow: React.FC = () => {
   const {
     getCurrentConversation,
     addConversation,
     addMessage,
+    updateMessage,
     currentConversationId,
     windowMode,
   } = useAppStore();
@@ -53,28 +55,21 @@ export const FloatingWindow: React.FC = () => {
   useEffect(() => {
     const initCalendar = async () => {
       try {
-        console.log('🔧 Attempting to initialize calendar...');
-        
         if (!window.electronAPI?.calendar) {
-          console.error('❌ Calendar API not available in electronAPI');
           // Still enable detection to allow fallback
           setIsCalendarInitialized(true);
           return;
         }
         
         const result = await window.electronAPI.calendar.initialize();
-        console.log('📅 Calendar initialization result:', result);
         
         if (result.success) {
-          console.log('✅ Calendar initialized successfully');
           setIsCalendarInitialized(true);
         } else {
-          console.warn('⚠️ Calendar init failed, but enabling detection:', result.error);
           // Enable detection anyway - auth will happen on first create
           setIsCalendarInitialized(true);
         }
       } catch (error) {
-        console.error('❌ Calendar initialization error:', error);
         // Still enable detection
         setIsCalendarInitialized(true);
       }
@@ -84,10 +79,9 @@ export const FloatingWindow: React.FC = () => {
 
     // Listen for auth success
     const handleAuthSuccess = () => {
-      console.log('✅ Authentication successful!');
       addMessage(currentConversationId || '', {
         role: 'assistant',
-        content: '✅ Successfully connected to Google Calendar! You can now create events.',
+        content: 'Successfully connected to Google Calendar. You can now create events.',
         status: 'sent',
       });
       
@@ -98,10 +92,9 @@ export const FloatingWindow: React.FC = () => {
     };
 
     const handleAuthError = (error: any) => {
-      console.error('❌ Authentication error:', error);
       addMessage(currentConversationId || '', {
         role: 'assistant',
-        content: `❌ Authentication failed: ${error.message || 'Unknown error'}`,
+        content: `Authentication failed: ${error.message || 'Unknown error'}`,
         status: 'sent',
       });
     };
@@ -125,30 +118,18 @@ export const FloatingWindow: React.FC = () => {
 
   const handleCalendarConfirm = async () => {
     if (!parsedCalendarEvent) {
-      console.error('❌ No parsed event available');
       return;
     }
-
-    console.log('🚀 Starting event creation...');
-    console.log('📋 Event details:', {
-      title: parsedCalendarEvent.title,
-      start: parsedCalendarEvent.startDateTime.toISOString(),
-      end: parsedCalendarEvent.endDateTime.toISOString(),
-    });
 
     setIsCreatingEvent(true);
 
     try {
       // Check authentication
-      console.log('🔐 Checking authentication...');
       const authCheck = await window.electronAPI.calendar.checkAuth();
-      console.log('🔐 Auth check result:', authCheck);
       
       if (!authCheck.authenticated) {
-        console.log('⚠️ Not authenticated, opening auth window...');
         // Need to authenticate first
         const authResult = await window.electronAPI.calendar.authenticate();
-        console.log('🔐 Auth result:', authResult);
         
         if (!authResult.success) {
           throw new Error(authResult.error || 'Authentication failed');
@@ -157,7 +138,7 @@ export const FloatingWindow: React.FC = () => {
         // Show message to user about authentication
         addMessage(currentConversationId!, {
           role: 'assistant',
-          content: '🔐 Authentication window opened. Please complete the login and try creating the event again.',
+          content: 'Authentication window opened. Please complete the login and try creating the event again.',
           status: 'sent',
         });
 
@@ -166,7 +147,6 @@ export const FloatingWindow: React.FC = () => {
         return;
       }
 
-      console.log('✅ Authenticated, creating event...');
       // Create the event
       const result = await window.electronAPI.calendar.createEvent({
         summary: parsedCalendarEvent.title,
@@ -174,14 +154,11 @@ export const FloatingWindow: React.FC = () => {
         endDateTime: parsedCalendarEvent.endDateTime.toISOString(),
       });
 
-      console.log('📅 Event creation result:', result);
-
       if (result.success) {
-        console.log('✅ Event created successfully!');
         // Success message with link
         const successMessage = result.eventLink
-          ? `✅ Event created successfully!\n\n📅 **${parsedCalendarEvent.title}**\n🕐 ${parsedCalendarEvent.startDateTime.toLocaleString()}\n\n[View in Google Calendar](${result.eventLink})`
-          : `✅ Event "${parsedCalendarEvent.title}" created successfully!`;
+          ? `Event created successfully.\n\n**${parsedCalendarEvent.title}**\n${parsedCalendarEvent.startDateTime.toLocaleString()}\n\n[View in Google Calendar](${result.eventLink})`
+          : `Event "${parsedCalendarEvent.title}" created successfully.`;
 
         addMessage(currentConversationId!, {
           role: 'assistant',
@@ -189,15 +166,13 @@ export const FloatingWindow: React.FC = () => {
           status: 'sent',
         });
       } else {
-        console.error('❌ Event creation failed:', result.error);
         throw new Error(result.error || 'Failed to create event');
       }
     } catch (error: any) {
-      console.error('❌ Error during event creation:', error);
       // Error message
       addMessage(currentConversationId!, {
         role: 'assistant',
-        content: `❌ Failed to create event: ${error.message}`,
+        content: `Failed to create event: ${error.message}`,
         status: 'sent',
       });
     } finally {
@@ -221,18 +196,12 @@ export const FloatingWindow: React.FC = () => {
     }
 
     // Check if message is a calendar intent
-    console.log('🔍 Checking message:', content);
-    console.log('📅 Calendar initialized:', isCalendarInitialized);
-    
     const isCalendarMessage = NLPParser.isCalendarIntent(content);
-    console.log('🎯 Is calendar intent:', isCalendarMessage);
     
     if (isCalendarInitialized && isCalendarMessage) {
       const parsedEvent = NLPParser.parseEventFromText(content);
-      console.log('📋 Parsed event:', parsedEvent);
       
       if (parsedEvent.isValid) {
-        console.log('✅ Event is valid, showing modal');
         
         // Add user message
         addMessage(conversationId, {
@@ -244,10 +213,7 @@ export const FloatingWindow: React.FC = () => {
         // Show calendar confirmation modal
         setParsedCalendarEvent(parsedEvent);
         setIsCalendarModalOpen(true);
-        console.log('📱 Modal should be visible now');
         return;
-      } else {
-        console.log('⚠️ Event parsing invalid:', parsedEvent.error);
       }
     }
 
@@ -270,41 +236,88 @@ export const FloatingWindow: React.FC = () => {
     // Clear attachment
     setAttachedFile(null);
 
-    setTimeout(() => {
+    // Get AI response using Gemini
+    const getAIResponse = async () => {
       let response = '';
       
       if (fileToProcess) {
         const fileType = fileToProcess.type;
         if (fileType.startsWith('image/')) {
-          response = `I can see you've attached an image (${fileToProcess.name}). While I can't actually process images in this demo, in a full implementation I would:\n\n✓ Analyze the image content\n✓ Extract text if present (OCR)\n✓ Identify objects and scenes\n✓ Answer questions about the image\n\nWhat would you like to know about this image?`;
+          response = `I can see you've attached an image (${fileToProcess.name}). While I can't process images yet, I can help you with text-based questions about it.`;
         } else if (fileType === 'application/pdf') {
-          response = `I've received your PDF document (${fileToProcess.name}). In a full implementation, I would:\n\n✓ Extract and read the text content\n✓ Summarize key points\n✓ Answer questions about the document\n✓ Find specific information\n\nHow can I help you with this document?`;
+          response = `I've received your PDF (${fileToProcess.name}). I can't read PDFs yet, but I can help answer questions about documents in general.`;
         }
+        
+        addMessage(conversationId!, {
+          role: 'assistant',
+          content: response,
+          status: 'sent',
+        });
       } else {
-        const responses = [
-          `Hi! 👋`,
-          `Got it!`,
-          `Sure, I can help with that.`,
-          `Hello! How can I assist you?`,
-          `I'm Sky Assistant, your AI companion. I can help you with various tasks like answering questions, providing explanations, and assisting with your daily workflow. What would you like to know?`,
-          `That's a great question! Let me break it down for you: First, we need to understand the core concept. Then, we can explore practical applications. Finally, I'll provide some specific examples.`,
-          `Here's what I found: The solution involves multiple steps. You'll need to consider both the technical aspects and the practical implementation. Would you like me to go into more detail?`,
-          `I'd be happy to help explain that! Here's a comprehensive overview:\n\n1. **First Point**: This is the foundational concept you need to understand.\n2. **Second Point**: Building on that, we can explore the next layer of complexity.\n3. **Third Point**: Finally, we tie everything together with practical applications.\n\nThe key is to approach this systematically and ensure you understand each step before moving forward.`,
-          `Let me provide you with a detailed explanation:\n\nThe process involves several stages. Initially, you'll want to gather all relevant information and analyze the requirements carefully. This ensures you have a solid foundation.\n\nNext, consider the different approaches available. Each method has its own advantages and trade-offs, so it's important to evaluate them based on your specific needs.\n\nFinally, implementation requires careful attention to detail and thorough testing to ensure everything works as expected.`,
-          `Here's a quick code example:\n\n\`\`\`javascript\nfunction greet(name) {\n  return \`Hello, \${name}! Welcome to Sky Assistant.\`;\n}\n\nconsole.log(greet('User'));\n\`\`\`\n\nThis demonstrates the basic syntax and structure you'll need.`,
-          `Done! The answer is being processed`,
-          `Perfect! You are on right track`,
-          `Here are the key points:\n• First important item\n• Second consideration\n• Third aspect to remember\n• Fourth detail to note\n• Final takeaway`,
-        ];
-        response = responses[Math.floor(Math.random() * responses.length)];
+        // Add placeholder assistant message
+        addMessage(conversationId!, {
+          role: 'assistant',
+          content: 'Thinking...',
+          status: 'sending',
+        } as any);
+
+        // Get the actual ID of the just-added message
+        const messages = getCurrentConversation()?.messages || [];
+        const placeholderMessage = messages[messages.length - 1];
+        const placeholderId = placeholderMessage?.id;
+
+        // Check if Gemini is available
+        if (!isGeminiAvailable()) {
+          updateMessage(conversationId!, placeholderId, {
+            content: 'Gemini API is not configured. Please add your GEMINI_API_KEY to the .env file.',
+            status: 'error',
+          });
+          return;
+        }
+
+        try {
+          // Get conversation history for context (last 6 messages)
+          const currentMessages = getCurrentConversation()?.messages || [];
+          const history = currentMessages.slice(-6).map((msg: any) => ({
+            role: msg.role,
+            content: msg.content,
+          }));
+
+          // Call Gemini API
+          const geminiResponse = await sendMessageToGemini(content, history);
+          
+          if (geminiResponse.error) {
+            updateMessage(conversationId!, placeholderId, {
+              content: `Error: ${geminiResponse.error}`,
+              status: 'error',
+            });
+            return;
+          }
+
+          if (!geminiResponse.text || geminiResponse.text.trim() === '') {
+            updateMessage(conversationId!, placeholderId, {
+              content: 'Received an empty response from the AI. Please try again.',
+              status: 'error',
+            });
+            return;
+          }
+
+          // Success - update placeholder with actual response
+          updateMessage(conversationId!, placeholderId, {
+            content: geminiResponse.text,
+            status: 'sent',
+          });
+        } catch (error: any) {
+          updateMessage(conversationId!, placeholderId, {
+            content: `Failed to get AI response: ${error.message || 'Unknown error'}`,
+            status: 'error',
+          });
+        }
       }
-      
-      addMessage(conversationId!, {
-        role: 'assistant',
-        content: response,
-        status: 'sent',
-      });
-    }, 1000);
+    };
+
+    // Execute async function
+    getAIResponse();
   };
 
   const handleExpand = async () => {
