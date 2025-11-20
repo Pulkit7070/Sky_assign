@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+/* Make window truly transparent */
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 /* CSS Custom Properties (Design Tokens) */
 :root {
   /* Premium macOS-inspired color palette */

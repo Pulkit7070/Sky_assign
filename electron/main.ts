@@ -32,9 +32,6 @@ function createWindow() {
   const x = width - COMPACT_SIZE.width - 20;
   const y = height - COMPACT_SIZE.height - 20;
 
-  // Get system accent color for dynamic tinting
-  const accentColor = nativeTheme.shouldUseDarkColors ? '#1e1e2e' : '#f5f5f7';
-  
   mainWindow = new BrowserWindow({
     x: windowState.x || x,
     y: windowState.y || y,
@@ -47,12 +44,11 @@ function createWindow() {
     resizable: true,
     alwaysOnTop: true,
     skipTaskbar: false,
-    hasShadow: true,
+    hasShadow: false,
     show: false,
-    backgroundColor: accentColor + '20', // Add transparency
+    backgroundColor: '#00000000',
     vibrancy: isMac ? 'under-window' : undefined,
     visualEffectState: isMac ? 'active' : undefined,
-    backgroundMaterial: isMac ? undefined : 'acrylic',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
