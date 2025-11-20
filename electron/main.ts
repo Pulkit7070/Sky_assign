@@ -360,7 +360,7 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
         const model = genAI.getGenerativeModel({ 
           model: modelName,
           generationConfig: {
-            maxOutputTokens: 150,
+            maxOutputTokens: 1000,
             temperature: 0.9,
           },
           safetySettings: [
@@ -381,36 +381,28 @@ ipcMain.handle('gemini:send-message', async (_, { message, conversationHistory }
               threshold: 'BLOCK_NONE',
             },
           ],
-          systemInstruction: 'You are Sky, a helpful AI assistant. Be conversational and friendly.',
         });
 
-        const chat = model.startChat({ history });
+        const chat = model.startChat({ 
+          history,
+          systemInstruction: 'You are Sky, a helpful AI assistant. Be conversational and friendly.',
+        });
+        
         const result = await chat.sendMessage(userMessage);
         const response = result.response;
         
-        // Extract text - try multiple methods
+        // Extract text using text() method
         let text = '';
-        
-        // Method 1: Call text() if it's a function
         if (typeof response.text === 'function') {
-          try {
-            text = response.text();
-          } catch (e) {
-            // Silent fail, try next method
-          }
+          text = response.text();
         }
         
-        // Method 2: Try candidates array
+        // Fallback: try to extract from candidates if text() failed
         if (!text && response.candidates && response.candidates.length > 0) {
           const candidate = response.candidates[0];
-          if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-            text = candidate.content.parts[0].text || '';
+          if (candidate.content?.parts && candidate.content.parts.length > 0) {
+            text = candidate.content.parts.map((part: any) => part.text || '').join('');
           }
-        }
-        
-        // Method 3: Check if text is a property
-        if (!text && response.text && typeof response.text === 'string') {
-          text = response.text;
         }
         
         // Validate we got actual text
