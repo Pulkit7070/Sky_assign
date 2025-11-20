@@ -1,7 +1,8 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, nativeTheme } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, nativeTheme, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import windowStateKeeper from 'electron-window-state';
+import { GoogleCalendarService } from '../src/services/google-calendar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,9 @@ let mainWindow: BrowserWindow | null = null;
 let orbWindow: BrowserWindow | null = null;
 let windowMode: 'compact' | 'expanded' = 'compact';
 let isMainWindowVisible = false;
+
+// Google Calendar service instance
+let calendarService: GoogleCalendarService | null = null;
 
 const COMPACT_SIZE = { width: 650, height: 500 };
 const EXPANDED_SIZE = { width: 900, height: 700 };
@@ -285,6 +289,194 @@ ipcMain.handle('sky:refresh', async (event) => {
   } catch (error) {
     console.error('Refresh error:', error);
     return { error: String(error) };
+  }
+});
+
+// Google Calendar handlers
+ipcMain.handle('calendar:initialize', async () => {
+  try {
+    // Initialize calendar service
+    calendarService = new GoogleCalendarService();
+    
+    const fs = await import('fs');
+    
+    // Check multiple locations for credentials
+    const possiblePaths = [
+      // 1. User data directory (production location)
+      path.join(app.getPath('userData'), 'google-credentials.json'),
+      // 2. Project root (development convenience)
+      path.join(__dirname, '../google-credentials.json'),
+      path.join(__dirname, '../../google-credentials.json'),
+      path.join(process.cwd(), 'google-credentials.json'),
+    ];
+    
+    let credentialsPath: string | null = null;
+    for (const testPath of possiblePaths) {
+      console.log('🔍 Checking for credentials at:', testPath);
+      if (fs.existsSync(testPath)) {
+        credentialsPath = testPath;
+        console.log('✅ Found credentials at:', testPath);
+        break;
+      }
+    }
+    
+    if (!credentialsPath) {
+      const userDataPath = app.getPath('userData');
+      return {
+        success: false,
+        error: `Google Calendar credentials not found. Please place google-credentials.json in:\n1. ${userDataPath}\n2. Project root: ${process.cwd()}`,
+      };
+    }
+    
+    const credentialsData = await fs.promises.readFile(credentialsPath, 'utf-8');
+    const credentials = JSON.parse(credentialsData);
+    
+    await calendarService.initialize({
+      client_id: credentials.installed.client_id,
+      client_secret: credentials.installed.client_secret,
+      redirect_uris: credentials.installed.redirect_uris,
+    });
+    
+    console.log('✅ Calendar service initialized successfully');
+    return { success: true, authenticated: calendarService.isAuthenticated() };
+  } catch (error: any) {
+    console.error('❌ Calendar initialization error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calendar:authenticate', async () => {
+  try {
+    if (!calendarService) {
+      return { success: false, error: 'Calendar service not initialized' };
+    }
+    
+    const authUrl = calendarService.getAuthUrl();
+    
+    // Create a new window to handle OAuth
+    const authWindow = new BrowserWindow({
+      width: 500,
+      height: 600,
+      show: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    authWindow.loadURL(authUrl);
+
+    // Listen for redirect
+    authWindow.webContents.on('will-redirect', async (event, url) => {
+      const urlObj = new URL(url);
+      const code = urlObj.searchParams.get('code');
+      
+      if (code) {
+        authWindow.close();
+        
+        try {
+          await calendarService.authenticateWithCode(code);
+          
+          // Notify renderer process
+          if (mainWindow) {
+            mainWindow.webContents.send('calendar:auth-success');
+          }
+        } catch (error) {
+          console.error('Failed to exchange code:', error);
+          if (mainWindow) {
+            mainWindow.webContents.send('calendar:auth-error', error);
+          }
+        }
+      }
+    });
+
+    // Handle window close
+    authWindow.on('closed', () => {
+      authWindow.destroy();
+    });
+    
+    return { success: true, authUrl };
+  } catch (error: any) {
+    console.error('Authentication error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calendar:authenticate-with-code', async (_, code: string) => {
+  try {
+    if (!calendarService) {
+      return { success: false, error: 'Calendar service not initialized' };
+    }
+    
+    await calendarService.authenticateWithCode(code);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Authentication with code error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calendar:check-auth', async () => {
+  try {
+    if (!calendarService) {
+      return { authenticated: false };
+    }
+    
+    return { authenticated: calendarService.isAuthenticated() };
+  } catch (error) {
+    return { authenticated: false };
+  }
+});
+
+ipcMain.handle('calendar:create-event', async (_, eventData) => {
+  try {
+    console.log('📅 [Main] Received create-event request:', eventData);
+    
+    if (!calendarService) {
+      console.error('❌ [Main] Calendar service not initialized');
+      return { success: false, error: 'Calendar service not initialized' };
+    }
+    
+    const isAuth = calendarService.isAuthenticated();
+    console.log('🔐 [Main] Authentication status:', isAuth);
+    
+    if (!isAuth) {
+      console.error('❌ [Main] Not authenticated');
+      return { success: false, error: 'Not authenticated. Please sign in to Google Calendar.' };
+    }
+    
+    console.log('✅ [Main] Creating event...');
+    const result = await calendarService.createEvent({
+      summary: eventData.summary,
+      description: eventData.description,
+      startDateTime: new Date(eventData.startDateTime),
+      endDateTime: new Date(eventData.endDateTime),
+      location: eventData.location,
+      attendees: eventData.attendees,
+    });
+    
+    console.log('📅 [Main] Event creation result:', result);
+    
+    return result;
+  } catch (error: any) {
+    console.error('Create event error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calendar:sign-out', async () => {
+  try {
+    if (!calendarService) {
+      return { success: false, error: 'Calendar service not initialized' };
+    }
+    
+    await calendarService.signOut();
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Sign out error:', error);
+    return { success: false, error: error.message };
   }
 });
 

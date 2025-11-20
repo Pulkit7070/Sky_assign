@@ -54,4 +54,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Orb interaction
   orbClicked: () => ipcRenderer.invoke('orb-clicked'),
+  
+  // Google Calendar API
+  calendar: {
+    initialize: () => 
+      ipcRenderer.invoke('calendar:initialize'),
+    authenticate: () => 
+      ipcRenderer.invoke('calendar:authenticate'),
+    authenticateWithCode: (code: string) => 
+      ipcRenderer.invoke('calendar:authenticate-with-code', code),
+    checkAuth: () => 
+      ipcRenderer.invoke('calendar:check-auth'),
+    createEvent: (eventData: {
+      summary: string;
+      description?: string;
+      startDateTime: string;
+      endDateTime: string;
+      location?: string;
+      attendees?: string[];
+    }) => ipcRenderer.invoke('calendar:create-event', eventData),
+    signOut: () => 
+      ipcRenderer.invoke('calendar:sign-out'),
+  },
+
+  // Calendar auth events
+  onCalendarAuthSuccess: (callback: () => void) => {
+    const subscription = () => callback();
+    ipcRenderer.on('calendar:auth-success', subscription);
+    
+    return () => {
+      ipcRenderer.removeListener('calendar:auth-success', subscription);
+    };
+  },
+
+  onCalendarAuthError: (callback: (error: any) => void) => {
+    const subscription = (_: any, error: any) => callback(error);
+    ipcRenderer.on('calendar:auth-error', subscription);
+    
+    return () => {
+      ipcRenderer.removeListener('calendar:auth-error', subscription);
+    };
+  },
 });

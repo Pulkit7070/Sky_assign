@@ -5,6 +5,8 @@ import { TransparentInput } from './TransparentInput';
 import { ChatMessage } from './ChatMessage';
 import { AttachmentModal } from './AttachmentModal';
 import { SettingsModal } from './SettingsModal';
+import { CalendarConfirmModal } from './CalendarConfirmModal';
+import { NLPParser, ParsedEvent } from '../services/nlp-parser';
 
 export const FloatingWindow: React.FC = () => {
   const {
@@ -21,6 +23,10 @@ export const FloatingWindow: React.FC = () => {
   const [isAttachmentModalOpen, setIsAttachmentModalOpen] = React.useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState(false);
   const [attachedFile, setAttachedFile] = React.useState<File | null>(null);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = React.useState(false);
+  const [parsedCalendarEvent, setParsedCalendarEvent] = React.useState<ParsedEvent | null>(null);
+  const [isCreatingEvent, setIsCreatingEvent] = React.useState(false);
+  const [isCalendarInitialized, setIsCalendarInitialized] = React.useState(false);
   const currentConversation = getCurrentConversation();
 
   const scrollToBottom = () => {
@@ -43,9 +49,167 @@ export const FloatingWindow: React.FC = () => {
     });
   }, [addConversation]);
 
+  // Initialize Google Calendar on mount
+  useEffect(() => {
+    const initCalendar = async () => {
+      try {
+        console.log('🔧 Attempting to initialize calendar...');
+        
+        if (!window.electronAPI?.calendar) {
+          console.error('❌ Calendar API not available in electronAPI');
+          // Still enable detection to allow fallback
+          setIsCalendarInitialized(true);
+          return;
+        }
+        
+        const result = await window.electronAPI.calendar.initialize();
+        console.log('📅 Calendar initialization result:', result);
+        
+        if (result.success) {
+          console.log('✅ Calendar initialized successfully');
+          setIsCalendarInitialized(true);
+        } else {
+          console.warn('⚠️ Calendar init failed, but enabling detection:', result.error);
+          // Enable detection anyway - auth will happen on first create
+          setIsCalendarInitialized(true);
+        }
+      } catch (error) {
+        console.error('❌ Calendar initialization error:', error);
+        // Still enable detection
+        setIsCalendarInitialized(true);
+      }
+    };
+    
+    initCalendar();
+
+    // Listen for auth success
+    const handleAuthSuccess = () => {
+      console.log('✅ Authentication successful!');
+      addMessage(currentConversationId || '', {
+        role: 'assistant',
+        content: '✅ Successfully connected to Google Calendar! You can now create events.',
+        status: 'sent',
+      });
+      
+      // Retry creating the event if we have a parsed event
+      if (parsedCalendarEvent && isCalendarModalOpen) {
+        handleCalendarConfirm();
+      }
+    };
+
+    const handleAuthError = (error: any) => {
+      console.error('❌ Authentication error:', error);
+      addMessage(currentConversationId || '', {
+        role: 'assistant',
+        content: `❌ Authentication failed: ${error.message || 'Unknown error'}`,
+        status: 'sent',
+      });
+    };
+
+    // Add event listeners if available
+    if (window.electronAPI?.onCalendarAuthSuccess) {
+      const unsubSuccess = window.electronAPI.onCalendarAuthSuccess(handleAuthSuccess);
+      const unsubError = window.electronAPI.onCalendarAuthError?.(handleAuthError);
+      
+      return () => {
+        unsubSuccess?.();
+        unsubError?.();
+      };
+    }
+  }, [parsedCalendarEvent, isCalendarModalOpen]);
+
   const handleFileAttach = (file: File) => {
     setAttachedFile(file);
     setIsAttachmentModalOpen(false);
+  };
+
+  const handleCalendarConfirm = async () => {
+    if (!parsedCalendarEvent) {
+      console.error('❌ No parsed event available');
+      return;
+    }
+
+    console.log('🚀 Starting event creation...');
+    console.log('📋 Event details:', {
+      title: parsedCalendarEvent.title,
+      start: parsedCalendarEvent.startDateTime.toISOString(),
+      end: parsedCalendarEvent.endDateTime.toISOString(),
+    });
+
+    setIsCreatingEvent(true);
+
+    try {
+      // Check authentication
+      console.log('🔐 Checking authentication...');
+      const authCheck = await window.electronAPI.calendar.checkAuth();
+      console.log('🔐 Auth check result:', authCheck);
+      
+      if (!authCheck.authenticated) {
+        console.log('⚠️ Not authenticated, opening auth window...');
+        // Need to authenticate first
+        const authResult = await window.electronAPI.calendar.authenticate();
+        console.log('🔐 Auth result:', authResult);
+        
+        if (!authResult.success) {
+          throw new Error(authResult.error || 'Authentication failed');
+        }
+
+        // Show message to user about authentication
+        addMessage(currentConversationId!, {
+          role: 'assistant',
+          content: '🔐 Authentication window opened. Please complete the login and try creating the event again.',
+          status: 'sent',
+        });
+
+        setIsCalendarModalOpen(false);
+        setIsCreatingEvent(false);
+        return;
+      }
+
+      console.log('✅ Authenticated, creating event...');
+      // Create the event
+      const result = await window.electronAPI.calendar.createEvent({
+        summary: parsedCalendarEvent.title,
+        startDateTime: parsedCalendarEvent.startDateTime.toISOString(),
+        endDateTime: parsedCalendarEvent.endDateTime.toISOString(),
+      });
+
+      console.log('📅 Event creation result:', result);
+
+      if (result.success) {
+        console.log('✅ Event created successfully!');
+        // Success message with link
+        const successMessage = result.eventLink
+          ? `✅ Event created successfully!\n\n📅 **${parsedCalendarEvent.title}**\n🕐 ${parsedCalendarEvent.startDateTime.toLocaleString()}\n\n[View in Google Calendar](${result.eventLink})`
+          : `✅ Event "${parsedCalendarEvent.title}" created successfully!`;
+
+        addMessage(currentConversationId!, {
+          role: 'assistant',
+          content: successMessage,
+          status: 'sent',
+        });
+      } else {
+        console.error('❌ Event creation failed:', result.error);
+        throw new Error(result.error || 'Failed to create event');
+      }
+    } catch (error: any) {
+      console.error('❌ Error during event creation:', error);
+      // Error message
+      addMessage(currentConversationId!, {
+        role: 'assistant',
+        content: `❌ Failed to create event: ${error.message}`,
+        status: 'sent',
+      });
+    } finally {
+      setIsCalendarModalOpen(false);
+      setIsCreatingEvent(false);
+      setParsedCalendarEvent(null);
+    }
+  };
+
+  const handleCalendarCancel = () => {
+    setIsCalendarModalOpen(false);
+    setParsedCalendarEvent(null);
   };
 
   const handleSendMessage = async (content: string) => {
@@ -54,6 +218,37 @@ export const FloatingWindow: React.FC = () => {
     // Create new conversation if none exists
     if (!conversationId) {
       conversationId = addConversation();
+    }
+
+    // Check if message is a calendar intent
+    console.log('🔍 Checking message:', content);
+    console.log('📅 Calendar initialized:', isCalendarInitialized);
+    
+    const isCalendarMessage = NLPParser.isCalendarIntent(content);
+    console.log('🎯 Is calendar intent:', isCalendarMessage);
+    
+    if (isCalendarInitialized && isCalendarMessage) {
+      const parsedEvent = NLPParser.parseEventFromText(content);
+      console.log('📋 Parsed event:', parsedEvent);
+      
+      if (parsedEvent.isValid) {
+        console.log('✅ Event is valid, showing modal');
+        
+        // Add user message
+        addMessage(conversationId, {
+          role: 'user',
+          content,
+          status: 'sent',
+        });
+
+        // Show calendar confirmation modal
+        setParsedCalendarEvent(parsedEvent);
+        setIsCalendarModalOpen(true);
+        console.log('📱 Modal should be visible now');
+        return;
+      } else {
+        console.log('⚠️ Event parsing invalid:', parsedEvent.error);
+      }
     }
 
     // Store file reference before clearing
@@ -301,7 +496,7 @@ export const FloatingWindow: React.FC = () => {
       <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'drag' } as any}>
         {/* Brand Section - Clickable to expand */}
         <motion.div 
-          className="flex items-center gap-2 cursor-pointer flex-shrink-0"
+          className="flex items-center gap-2 cursor-pointer shrink-0"
           onClick={handleExpand}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -332,7 +527,7 @@ export const FloatingWindow: React.FC = () => {
               exit={{ opacity: 0, scale: 0.9, y: -5 }}
               className="absolute -top-11 left-0 right-0 flex items-center gap-2 px-3 py-2 bg-white/25 border border-white/40 rounded-xl backdrop-blur-md shadow-lg"
             >
-              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/40 flex items-center justify-center">
+              <div className="shrink-0 w-7 h-7 rounded-lg bg-white/40 flex items-center justify-center">
                 {attachedFile.type.startsWith('image/') ? (
                   <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -351,7 +546,7 @@ export const FloatingWindow: React.FC = () => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setAttachedFile(null)}
-                className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-600 flex items-center justify-center text-white transition-all shadow-sm"
+                className="shrink-0 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-600 flex items-center justify-center text-white transition-all shadow-sm"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -420,6 +615,14 @@ export const FloatingWindow: React.FC = () => {
       <SettingsModal 
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+      />
+
+      <CalendarConfirmModal 
+        isOpen={isCalendarModalOpen}
+        parsedEvent={parsedCalendarEvent}
+        onConfirm={handleCalendarConfirm}
+        onCancel={handleCalendarCancel}
+        isCreating={isCreatingEvent}
       />
     </motion.div>
   );
