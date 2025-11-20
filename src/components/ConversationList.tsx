@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/store/useAppStore';
 import { formatTimestamp } from '@/utils/platform';
@@ -15,6 +15,23 @@ export const ConversationList: React.FC = () => {
   } = useAppStore();
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setDeletingId(null);
+      }
+    };
+
+    if (deletingId) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [deletingId]);
 
   const filteredConversations = conversations.filter((conv) =>
     conv.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -95,7 +112,7 @@ export const ConversationList: React.FC = () => {
                   </div>
                   
                   {/* Three-dot menu */}
-                  <div className="relative">
+                  <div className="relative" ref={deletingId === conv.id ? menuRef : null}>
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
