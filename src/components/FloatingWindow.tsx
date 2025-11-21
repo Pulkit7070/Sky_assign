@@ -6,6 +6,8 @@ import { ChatMessage } from './ChatMessage';
 import { AttachmentModal } from './AttachmentModal';
 import { SettingsModal } from './SettingsModal';
 import { CalendarConfirmModal } from './CalendarConfirmModal';
+import { ImagePreviewModal } from './ImagePreviewModal';
+import { EnhancedMessage } from './EnhancedMessage';
 import { NLPParser, ParsedEvent } from '../services/nlp-parser';
 import { sendMessageToGemini, isGeminiAvailable } from '../services/gemini-service';
 
@@ -29,6 +31,10 @@ export const FloatingWindow: React.FC = () => {
   const [parsedCalendarEvent, setParsedCalendarEvent] = React.useState<ParsedEvent | null>(null);
   const [isCreatingEvent, setIsCreatingEvent] = React.useState(false);
   const [isCalendarInitialized, setIsCalendarInitialized] = React.useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = React.useState<string | null>(null);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = React.useState(false);
+  const [showImageActions, setShowImageActions] = React.useState(false);
+  const [selectedImageAction, setSelectedImageAction] = React.useState<string | null>(null);
   const currentConversation = getCurrentConversation();
 
   const scrollToBottom = () => {
@@ -113,6 +119,13 @@ export const FloatingWindow: React.FC = () => {
 
   const handleFileAttach = (file: File) => {
     setAttachedFile(file);
+    setSelectedImageAction(null);
+    setShowImageActions(false);
+    // Create preview URL for images
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setImagePreviewUrl(url);
+    }
     setIsAttachmentModalOpen(false);
   };
 
@@ -155,16 +168,25 @@ export const FloatingWindow: React.FC = () => {
       });
 
       if (result.success) {
-        // Success message with link
-        const successMessage = result.eventLink
-          ? `Event created successfully.\n\n**${parsedCalendarEvent.title}**\n${parsedCalendarEvent.startDateTime.toLocaleString()}\n\n[View in Google Calendar](${result.eventLink})`
-          : `Event "${parsedCalendarEvent.title}" created successfully.`;
-
+        // Success message with enhanced calendar display
+        const startDate = parsedCalendarEvent.startDateTime.toLocaleDateString();
+        const startTime = parsedCalendarEvent.startDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const endTime = parsedCalendarEvent.endDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
         addMessage(currentConversationId!, {
           role: 'assistant',
-          content: successMessage,
+          content: result.eventLink ? `[View in Google Calendar](${result.eventLink})` : 'Event created successfully',
           status: 'sent',
-        });
+          messageType: 'calendar',
+          calendarEvent: {
+            title: parsedCalendarEvent.title,
+            location: parsedCalendarEvent.location,
+            startDate,
+            startTime,
+            endTime,
+            invitees: [],
+          },
+        } as any);
       } else {
         throw new Error(result.error || 'Failed to create event');
       }
@@ -198,12 +220,117 @@ export const FloatingWindow: React.FC = () => {
     }
   };
 
+  const handleActionSelect = (optionId: string) => {
+    console.log('Action selected:', optionId);
+    
+    const actionLabels = {
+      describe: 'Describe this image',
+      extract: 'Extract text from image',
+      analyze: 'Analyze image content'
+    };
+    
+    // Set the selected action and trigger sending with the action label as content
+    setSelectedImageAction(optionId);
+    handleSendMessage(actionLabels[optionId as keyof typeof actionLabels] || 'Process image');
+  };
+
   const handleSendMessage = async (content: string) => {
     let conversationId = currentConversationId;
 
     // Create new conversation if none exists
     if (!conversationId) {
       conversationId = addConversation();
+    }
+
+    // PRIORITY 0: Check if image is attached - show action options
+    if (attachedFile && attachedFile.type.startsWith('image/')) {
+      // If no action selected yet, show action tabs
+      if (!selectedImageAction) {
+        // Add user message with image
+        addMessage(conversationId, {
+          role: 'user',
+          content: content || 'Image attached',
+          status: 'sent',
+        });
+
+        // Add action options message
+        addMessage(conversationId, {
+          role: 'assistant',
+          content: 'Image uploaded successfully! What would you like me to do with this image?',
+          status: 'sent',
+          messageType: 'action',
+          actionOptions: [
+            {
+              id: 'describe',
+              label: 'Describe this image',
+              description: 'Get a detailed description of what\'s in the image'
+            },
+            {
+              id: 'extract',
+              label: 'Extract text from image',
+              description: 'Read and extract any text visible in the image'
+            },
+            {
+              id: 'analyze',
+              label: 'Analyze image content',
+              description: 'Analyze objects, colors, and composition'
+            }
+          ]
+        });
+        
+        setShowImageActions(true);
+        return;
+      }
+
+      // Action selected - process accordingly
+      const processingLabels = {
+        describe: 'Describing image...',
+        extract: 'Extracting text from image...',
+        analyze: 'Analyzing image content...'
+      };
+
+      // Add user's selected action as a message (content already contains the action label)
+      addMessage(conversationId, {
+        role: 'user',
+        content: content,
+        status: 'sent',
+      });
+
+      // Add loading message
+      addMessage(conversationId, {
+        role: 'assistant',
+        content: processingLabels[selectedImageAction as keyof typeof processingLabels] || 'Processing...',
+        status: 'sending',
+      } as any);
+
+      const messages = getCurrentConversation()?.messages || [];
+      const loadingMessage = messages[messages.length - 1];
+      const loadingMessageId = loadingMessage?.id;
+
+      // Simulate processing and provide response
+      setTimeout(() => {
+        const responses = {
+          describe: `Based on the uploaded image "${attachedFile.name}":\n\nThis appears to be an image file (${attachedFile.type}). \n\n*Note: Full image analysis requires Vision API integration. This is a placeholder response based on your selected action.*`,
+          extract: `Analyzing "${attachedFile.name}" for text content...\n\n*Note: OCR and text extraction require Vision API integration. This is a placeholder response.*`,
+          analyze: `Image Analysis for "${attachedFile.name}":\n\nFile type: ${attachedFile.type}\nFile size: ${(attachedFile.size / 1024).toFixed(2)} KB\n\n*Note: Detailed image analysis requires Vision API integration. This is a placeholder response.*`
+        };
+
+        updateMessage(conversationId, loadingMessageId, {
+          content: responses[selectedImageAction as keyof typeof responses] || 'Processing complete.',
+          status: 'sent',
+        });
+
+        // Clear attachment and action state
+        setAttachedFile(null);
+        setSelectedImageAction(null);
+        setShowImageActions(false);
+        if (imagePreviewUrl) {
+          URL.revokeObjectURL(imagePreviewUrl);
+          setImagePreviewUrl(null);
+        }
+      }, 1500);
+      
+      return;
     }
 
     // PRIORITY 1: Check if message is a location/places intent (check BEFORE calendar and Gemini)
@@ -301,21 +428,20 @@ export const FloatingWindow: React.FC = () => {
           }
 
           if (placesResult?.success && placesResult.results && placesResult.results.length > 0) {
-            // Format OSM results for display
-            const formattedResults = placesResult.results.slice(0, 5).map((place: any, index: number) => {
-              const distance = place.distance ? `📍 ${Math.round(place.distance / 1000)}km away` : '';
-              const type = place.type ? `(${place.type})` : '';
-              const address = place.address || '';
-              
-              return `${index + 1}. **${place.name}** ${type}\n   ${address}\n   ${distance}`.trim();
-            }).join('\n\n');
-
-            const resultText = `I found ${placesResult.results.length} places:\n\n${formattedResults}`;
+            // Format OSM results for enhanced display
+            const mapPlaces = placesResult.results.slice(0, 5).map((place: any) => ({
+              name: place.name,
+              description: place.address || place.type || '',
+              rating: place.rating || 4.0 + Math.random(), // OSM doesn't provide ratings, use placeholder
+              distance: place.distance ? `${Math.round(place.distance / 1000)}km away` : undefined,
+            }));
 
             updateMessage(conversationId, loadingMessageId, {
-              content: resultText,
+              content: `I found ${placesResult.results.length} places nearby:`,
               status: 'sent',
-            });
+              messageType: 'maps',
+              mapPlaces,
+            } as any);
           } else {
             updateMessage(conversationId, loadingMessageId, {
               content: placesResult?.error || 'No places found matching your criteria.',
@@ -373,7 +499,7 @@ export const FloatingWindow: React.FC = () => {
     // Add user message with attachment info if present
     let messageContent = content;
     if (fileToProcess) {
-      const fileType = fileToProcess.type.startsWith('image/') ? '🖼️ Image' : '📄 PDF';
+      const fileType = fileToProcess.type.startsWith('image/') ? 'Image' : 'PDF';
       messageContent = `${fileType}: ${fileToProcess.name}\n\n${content}`;
     }
 
@@ -564,12 +690,18 @@ export const FloatingWindow: React.FC = () => {
 
   // Calculate dynamic height based on actual content of current pair
   useEffect(() => {
-    // Don't resize if any modal is open - they handle their own sizing
-    if (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) return;
+    // When modals are open, expand window to accommodate them
+    if (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) {
+      if (window.electronAPI?.requestResize && windowMode === 'compact') {
+        window.electronAPI.requestResize({ width: 650, height: 450, anchor: 'bottom' });
+      }
+      return;
+    }
     
     if (!window.electronAPI?.requestResize || windowMode !== 'compact') return;
     
     const baseHeight = 120; // Height for input bar
+    const imagePreviewHeight = 0; // No extra height for image preview
     const maxWindowHeight = 700; // Maximum total window height
     const maxMessageHeight = 600; // Maximum height for messages
     
@@ -584,13 +716,13 @@ export const FloatingWindow: React.FC = () => {
         messageHeight = Math.min(actualHeight + 40, maxMessageHeight);
       }
       
-      const totalHeight = Math.min(baseHeight + messageHeight, maxWindowHeight);
+      const totalHeight = Math.min(baseHeight + messageHeight + imagePreviewHeight, maxWindowHeight);
       
       window.electronAPI.requestResize({ width: 650, height: totalHeight, anchor: 'bottom' });
     }, 100); // Small delay to ensure content is rendered
     
     return () => clearTimeout(timer);
-  }, [currentPair, currentPairIndex, windowMode, isCalendarModalOpen, isSettingsModalOpen, isAttachmentModalOpen]);
+  }, [currentPair, currentPairIndex, windowMode, isCalendarModalOpen, isSettingsModalOpen, isAttachmentModalOpen, attachedFile, showImageActions]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -663,7 +795,11 @@ export const FloatingWindow: React.FC = () => {
               >
                 <div ref={messagesContainerRef} className="space-y-3 px-2">
                   {currentPair.map((message: any) => (
-                    <ChatMessage key={message.id} message={message} />
+                    <ChatMessage 
+                      key={message.id} 
+                      message={message} 
+                      onActionSelect={handleActionSelect}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -700,41 +836,16 @@ export const FloatingWindow: React.FC = () => {
 
         {/* Input Field - Inline with logo */}
         <div style={{ WebkitAppRegion: 'no-drag' } as any} className="flex-1 relative">
+          <TransparentInput onSend={handleSendMessage} autoFocus={windowMode === 'compact'} />
           {attachedFile && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -5 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -5 }}
-              className="absolute -top-11 left-0 right-0 flex items-center gap-2 px-3 py-2 bg-white/25 border border-white/40 rounded-xl backdrop-blur-md shadow-lg"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute -bottom-5 left-0 right-0 text-center"
             >
-              <div className="shrink-0 w-7 h-7 rounded-lg bg-white/40 flex items-center justify-center">
-                {attachedFile.type.startsWith('image/') ? (
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-800 font-medium truncate">{attachedFile.name}</p>
-                <p className="text-[10px] text-gray-600">{(attachedFile.size / 1024).toFixed(1)} KB</p>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setAttachedFile(null)}
-                className="shrink-0 w-5 h-5 rounded-full bg-red-500/80 hover:bg-red-600 flex items-center justify-center text-white transition-all shadow-sm"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </motion.button>
+              
             </motion.div>
           )}
-          <TransparentInput onSend={handleSendMessage} autoFocus={windowMode === 'compact'} />
         </div>
 
         {/* Action Buttons */}
@@ -804,6 +915,22 @@ export const FloatingWindow: React.FC = () => {
         isOpen={isAttachmentModalOpen}
         onClose={() => setIsAttachmentModalOpen(false)}
         onAttach={handleFileAttach}
+      />
+      
+      <ImagePreviewModal
+        isOpen={isImagePreviewOpen}
+        imageUrl={imagePreviewUrl}
+        fileName={attachedFile?.name || ''}
+        fileSize={attachedFile?.size || 0}
+        onClose={() => setIsImagePreviewOpen(false)}
+        onRemove={() => {
+          setAttachedFile(null);
+          if (imagePreviewUrl) {
+            URL.revokeObjectURL(imagePreviewUrl);
+            setImagePreviewUrl(null);
+          }
+          setIsImagePreviewOpen(false);
+        }}
       />
       
       <SettingsModal 

@@ -35,14 +35,14 @@ export const TransparentInput: React.FC<TransparentInputProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileFocus={{ scale: 1.02 }}
-      className="bg-[rgba(230,240,250,0.85)] backdrop-blur-xl rounded-full border-2 border-white/50 shadow-[0_8px_32px_rgba(100,150,200,0.25)] px-4 py-2.5"
+      whileFocus={{ scale: 1.01 }}
+      className="bg-white/80 backdrop-blur-xl rounded-full border border-white/60 shadow-[0_4px_24px_rgba(0,0,0,0.12)] px-5 py-2.5 hover:shadow-[0_6px_28px_rgba(0,0,0,0.15)] transition-all duration-200"
       style={{
-        backdropFilter: 'blur(24px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-        boxShadow: '0 8px 32px rgba(100, 150, 200, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
       } as any}
     >
       <input
@@ -51,8 +51,12 @@ export const TransparentInput: React.FC<TransparentInputProps> = ({
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Type to start..."
-        className="w-full bg-transparent outline-none text-gray-900 placeholder-gray-600/70 text-sm font-medium"
+        placeholder="Ask me anything..."
+        className="w-full bg-transparent outline-none text-sky-text placeholder-sky-text-secondary/70 text-[15px] font-sf-pro"
+        style={{
+          fontWeight: 400,
+          letterSpacing: '-0.01em',
+        }}
       />
     </motion.div>
   );

@@ -2,12 +2,39 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 
 export type MessageStatus = 'sending' | 'sent' | 'error';
 
+export interface CalendarEventData {
+  title: string;
+  location?: string;
+  startDate: string;
+  startTime: string;
+  endTime: string;
+  invitees?: string[];
+}
+
+export interface MapPlace {
+  name: string;
+  description: string;
+  rating: number;
+  distance?: string;
+}
+
+export interface ActionOption {
+  id: string;
+  label: string;
+  description?: string;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
   content: string;
   timestamp: number;
   status?: MessageStatus;
+  // Enhanced message data
+  messageType?: 'calendar' | 'maps' | 'action' | 'default';
+  calendarEvent?: CalendarEventData;
+  mapPlaces?: MapPlace[];
+  actionOptions?: ActionOption[];
 }
 
 export interface Conversation {

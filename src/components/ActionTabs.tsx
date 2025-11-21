@@ -1,112 +1,59 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { useAppStore } from '@/store/useAppStore';
-import { Action } from '@/types';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export const ActionTabs: React.FC = () => {
-  const { actions, updateAction } = useAppStore();
+interface ActionOption {
+  id: string;
+  label: string;
+  description?: string;
+}
 
-  const handleActionClick = (action: Action) => {
-    if (action.state === 'loading') return;
+interface ActionTabsProps {
+  options: ActionOption[];
+  onSelect: (optionId: string) => void;
+  selectedId?: string | null;
+}
 
-    // Simulate action execution
-    updateAction(action.id, { state: 'loading' });
-
-    setTimeout(() => {
-      updateAction(action.id, { state: 'completed' });
-      
-      // Reset after 2 seconds
-      setTimeout(() => {
-        updateAction(action.id, { state: 'ready' });
-      }, 2000);
-    }, 1500);
-  };
-
-  const getActionIcon = (action: Action) => {
-    if (action.state === 'loading') {
-      return (
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-4 h-4 border-2 border-sky-accent border-t-transparent rounded-full"
-        />
-      );
-    }
-
-    if (action.state === 'completed') {
-      return (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4 text-green-500"
-        >
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      );
-    }
-
-    if (action.state === 'error') {
-      return (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="w-4 h-4 text-red-500"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-      );
-    }
-
-    return null;
+export const ActionTabs: React.FC<ActionTabsProps> = ({ options, onSelect, selectedId }) => {
+  const handleSelect = (id: string) => {
+    onSelect(id);
   };
 
   return (
-    <div className="border-t border-sky-border/30 bg-gradient-to-b from-white/70 via-white/60 to-white/50 backdrop-blur-2xl relative">
-      {/* Subtle top highlight */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-      
-      <div className="flex items-center gap-2.5 px-5 py-3.5 overflow-x-auto scrollbar-hide">
-        {actions.map((action) => (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-2 my-3"
+    >
+      {options.map((option) => {
+        return (
           <motion.button
-            key={action.id}
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => handleActionClick(action)}
-            disabled={action.state === 'loading'}
-            className={`flex-shrink-0 flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all relative overflow-hidden ${
-              action.state === 'ready'
-                ? 'bg-white/90 text-sky-accent border border-sky-accent/25 shadow-sm hover:shadow-md hover:border-sky-accent/40 hover:bg-white'
-                : action.state === 'loading'
-                ? 'bg-white/70 text-sky-text-secondary cursor-wait border border-sky-border/20'
-                : action.state === 'completed'
-                ? 'bg-white/90 text-sky-success border border-sky-success/30 shadow-sm'
-                : 'bg-white/90 text-sky-error border border-sky-error/30 shadow-sm'
-            }`}
+            key={option.id}
+            onClick={() => handleSelect(option.id)}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all bg-white/70 border border-gray-200/40 hover:bg-white/85"
           >
-            {/* Subtle gradient overlay for depth */}
-            {action.state === 'ready' && (
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-accent/5 to-transparent pointer-events-none" />
-            )}
-            
-            <div className="relative z-10 flex items-center gap-2">
-              {getActionIcon(action)}
-              <span className="uppercase">{action.label}</span>
+            {/* Label */}
+            <div className="flex-1 text-left">
+              <div className="text-[15px] font-medium text-gray-700">
+                {option.label}
+              </div>
+              {option.description && (
+                <div className="text-[13px] text-gray-500 mt-0.5">
+                  {option.description}
+                </div>
+              )}
+            </div>
+
+            {/* Arrow */}
+            <div className="shrink-0">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </div>
           </motion.button>
-        ))}
-      </div>
-    </div>
+        );
+      })}
+    </motion.div>
   );
 };

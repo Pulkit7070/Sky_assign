@@ -11,13 +11,15 @@ import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-json';
 import { Message } from '@/types';
+import { EnhancedMessage } from './EnhancedMessage';
 
 interface ChatMessageProps {
   message: Message;
   isLatest?: boolean;
+  onActionSelect?: (optionId: string) => void;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest, onActionSelect }) => {
   const isUser = message.role === 'user';
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -36,7 +38,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) =
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
     >
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[85%] rounded-2xl px-4 py-3 select-text ${
           isUser
             ? 'bg-[rgba(30,30,40,0.92)] backdrop-blur-2xl text-white border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ring-1 ring-white/10'
             : 'bg-[rgba(255,255,255,0.92)] backdrop-blur-2xl text-gray-900 border border-gray-300/40 shadow-[0_8px_32px_rgba(0,0,0,0.15)]'
@@ -44,11 +46,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) =
         style={{
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
         } as any}
       >
-        <div className="prose prose-sm max-w-none">
-          {message.role === 'assistant' ? (
-            <ReactMarkdown
+        {/* Render EnhancedMessage if message has structured data */}
+        {message.messageType && message.messageType !== 'default' ? (
+          <EnhancedMessage
+            type={message.messageType}
+            content={message.content}
+            calendarEvent={message.calendarEvent}
+            mapPlaces={message.mapPlaces}
+            actionOptions={message.actionOptions as any}
+            onActionSelect={onActionSelect}
+          />
+        ) : (
+          <div className="prose prose-sm max-w-none">
+            {message.role === 'assistant' ? (
+              <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
                 code({ className, children, ...props }: any) {
@@ -129,7 +144,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLatest }) =
           ) : (
             <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
           )}
-        </div>
+          </div>
+        )}
 
         {message.status === 'sending' && (
           <div className="flex items-center gap-1 mt-2">
