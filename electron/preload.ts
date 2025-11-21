@@ -105,4 +105,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendMessage: (message: string, conversationHistory: any[]) => 
       ipcRenderer.invoke('gemini:send-message', { message, conversationHistory }),
   },
+
+  // OpenStreetMap + Photon API (100% Free - No API Key Required)
+  places: {
+    searchNearby: (request: {
+      location: { lat: number; lng: number };
+      radius: number;
+      type?: string;
+      keyword?: string;
+    }) => ipcRenderer.invoke('places:search-nearby', request),
+    searchText: (request: {
+      query: string;
+      location?: { lat: number; lng: number };
+      radius?: number;
+    }) => ipcRenderer.invoke('places:search-text', request),
+    geocode: (request: {
+      address: string;
+    }) => ipcRenderer.invoke('places:geocode', request),
+    getLocationFromIP: () => ipcRenderer.invoke('places:get-location-from-ip'),
+  },
 });

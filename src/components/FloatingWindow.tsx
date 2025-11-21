@@ -206,7 +206,136 @@ export const FloatingWindow: React.FC = () => {
       conversationId = addConversation();
     }
 
-    // Check if message is a calendar intent
+    // PRIORITY 1: Check if message is a location/places intent (check BEFORE calendar and Gemini)
+    const isLocationMessage = NLPParser.isLocationIntent(content);
+    
+    if (isLocationMessage && window.electronAPI?.places) {
+      const locationQuery = NLPParser.parseLocationQuery(content);
+      
+      if (locationQuery.isValid) {
+        // Add user message
+        addMessage(conversationId, {
+          role: 'user',
+          content,
+          status: 'sent',
+        });
+
+        // Add loading message
+        addMessage(conversationId, {
+          role: 'assistant',
+          content: 'Searching for nearby places...',
+          status: 'sending',
+        } as any);
+
+        const messages = getCurrentConversation()?.messages || [];
+        const loadingMessage = messages[messages.length - 1];
+        const loadingMessageId = loadingMessage?.id;
+
+        try {
+          let placesResult;
+          
+          if (locationQuery.type === 'nearby' && locationQuery.useCurrentLocation) {
+            // Get current location - try browser geolocation first, then IP fallback
+            let location: { lat: number; lng: number } | null = null;
+            
+            try {
+              // Try browser geolocation first (will fail in Electron without proper setup)
+              const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                  resolve,
+                  reject,
+                  {
+                    enableHighAccuracy: false,
+                    timeout: 5000,
+                    maximumAge: 300000 // 5 minutes cache
+                  }
+                );
+              });
+
+              location = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              };
+            } catch (geoError: any) {
+              // Fallback to IP-based geolocation (free, no API key)
+              const ipLocation = await window.electronAPI.places.getLocationFromIP();
+              
+              if (ipLocation.success && ipLocation.location) {
+                location = {
+                  lat: ipLocation.location.lat,
+                  lng: ipLocation.location.lng,
+                };
+                
+                // Update loading message to show we're using approximate location
+                updateMessage(conversationId, loadingMessageId, {
+                  content: `Using approximate location (${ipLocation.location.city}, ${ipLocation.location.country})...\nSearching for nearby places...`,
+                  status: 'sending',
+                });
+              } else {
+                // Both methods failed
+                updateMessage(conversationId, loadingMessageId, {
+                  content: `Unable to determine your location.\n\n` +
+                    `**Try searching with a specific location instead:**\n` +
+                    `For example: "Find restaurants in New York" or "Coffee shops in Delhi"`,
+                  status: 'sent',
+                });
+                return;
+              }
+            }
+
+            if (location) {
+              placesResult = await window.electronAPI.places.searchNearby({
+                location,
+                radius: 5000, // 5km default
+                type: locationQuery.placeType,
+                keyword: locationQuery.keyword,
+              });
+            }
+          } else if (locationQuery.type === 'text') {
+            // Text search with location name
+            placesResult = await window.electronAPI.places.searchText({
+              query: locationQuery.location 
+                ? `${locationQuery.keyword || locationQuery.placeType} in ${locationQuery.location}`
+                : content,
+            });
+          }
+
+          if (placesResult?.success && placesResult.results && placesResult.results.length > 0) {
+            // Format OSM results for display
+            const formattedResults = placesResult.results.slice(0, 5).map((place: any, index: number) => {
+              const distance = place.distance ? `📍 ${Math.round(place.distance / 1000)}km away` : '';
+              const type = place.type ? `(${place.type})` : '';
+              const address = place.address || '';
+              
+              return `${index + 1}. **${place.name}** ${type}\n   ${address}\n   ${distance}`.trim();
+            }).join('\n\n');
+
+            const resultText = `I found ${placesResult.results.length} places:\n\n${formattedResults}`;
+
+            updateMessage(conversationId, loadingMessageId, {
+              content: resultText,
+              status: 'sent',
+            });
+          } else {
+            updateMessage(conversationId, loadingMessageId, {
+              content: placesResult?.error || 'No places found matching your criteria.',
+              status: 'sent',
+            });
+          }
+        } catch (error: any) {
+          updateMessage(conversationId, loadingMessageId, {
+            content: error.message === 'User denied Geolocation'
+              ? 'Location access denied. Please enable location permissions to search nearby places.'
+              : `Failed to search places: ${error.message}`,
+            status: 'error',
+          });
+        }
+        
+        return;
+      }
+    }
+
+    // PRIORITY 2: Check if message is a calendar intent
     const isCalendarMessage = NLPParser.isCalendarIntent(content);
     
     if (isCalendarInitialized && isCalendarMessage) {
@@ -237,6 +366,7 @@ export const FloatingWindow: React.FC = () => {
       }
     }
 
+    // PRIORITY 3: Send to Gemini (if not location or calendar)
     // Store file reference before clearing
     const fileToProcess = attachedFile;
 

@@ -189,8 +189,6 @@ function toggleWindowMode(mode?: 'compact' | 'expanded') {
     
     // Remove always on top for better UX in expanded mode
     mainWindow.setAlwaysOnTop(false);
-    
-    console.log(`Γ£ô Expanded to ${EXPANDED_SIZE.width}x${EXPANDED_SIZE.height} at (${x}, ${y})`);
   } else {
     // Collapse to compact
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -525,10 +523,8 @@ ipcMain.handle('calendar:initialize', async () => {
     
     let credentialsPath: string | null = null;
     for (const testPath of possiblePaths) {
-      console.log('🔍 Checking for credentials at:', testPath);
       if (fs.existsSync(testPath)) {
         credentialsPath = testPath;
-        console.log('✅ Found credentials at:', testPath);
         break;
       }
     }
@@ -728,6 +724,234 @@ ipcMain.handle('sky:request-resize', async (event, { width, height, anchor }) =>
     return { error: String(error) };
   }
 });
+
+// OpenStreetMap + Photon API handlers (100% FREE)
+// Using Photon by Komoot for place search - no API key required
+const PHOTON_API_BASE = 'https://photon.komoot.io/api';
+const NOMINATIM_API_BASE = 'https://nominatim.openstreetmap.org';
+
+// Get approximate location from IP (free, no API key)
+ipcMain.handle('places:get-location-from-ip', async () => {
+  try {
+    // Use ip-api.com - free, no key required, allows 45 requests/minute
+    const response = await fetch('http://ip-api.com/json/?fields=lat,lon,city,country');
+    const data = await response.json();
+    
+    if (data.lat && data.lon) {
+      return {
+        success: true,
+        location: {
+          lat: data.lat,
+          lng: data.lon,
+          city: data.city,
+          country: data.country,
+        }
+      };
+    }
+    
+    return { success: false, error: 'Could not determine location from IP' };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Helper to format OSM place data
+function formatOSMPlace(feature: any) {
+  const props = feature.properties || {};
+  const coords = feature.geometry?.coordinates || [0, 0];
+  
+  return {
+    osm_id: props.osm_id || feature.id,
+    name: props.name || 'Unnamed place',
+    address: [
+      props.street,
+      props.housenumber,
+      props.city || props.county,
+      props.state,
+      props.country
+    ].filter(Boolean).join(', '),
+    location: {
+      lat: coords[1],
+      lng: coords[0]
+    },
+    type: props.type || props.osm_value,
+    category: props.osm_key,
+    distance: feature.distance,
+  };
+}
+
+// Search nearby places using Photon API
+ipcMain.handle('places:search-nearby', async (_, { location, radius = 5000, type, keyword }) => {
+  try {
+    // Build query - Photon needs actual search terms, not just type codes
+    let query = keyword || type || 'place';
+    
+    // Convert type codes to search-friendly terms
+    const typeMapping: Record<string, string> = {
+      'restaurant': 'restaurant',
+      'cafe': 'cafe',
+      'grocery_store': 'grocery store',
+      'shopping_mall': 'shopping mall',
+      'hospital': 'hospital',
+      'hotel': 'hotel',
+      'gas_station': 'gas station',
+      'bank': 'bank',
+      'pharmacy': 'pharmacy',
+      'park': 'park',
+      'gym': 'gym',
+      'school': 'school',
+    };
+    
+    if (type && typeMapping[type]) {
+      query = typeMapping[type];
+    }
+    
+    const params = new URLSearchParams({
+      q: query,
+      lat: String(location.lat),
+      lon: String(location.lng),
+      limit: '15',
+    });
+
+    const url = `${PHOTON_API_BASE}/?${params.toString()}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Sky-Assistant/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Photon] Error response:', response.status, errorText);
+      throw new Error(`Photon API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const features = data.features || [];
+
+    // Calculate distance for all features and filter by radius
+    let filteredFeatures = features;
+    if (radius && features.length > 0) {
+      filteredFeatures = features
+        .map((f: any) => {
+          const coords = f.geometry?.coordinates || [0, 0];
+          const distance = calculateDistance(
+            location.lat,
+            location.lng,
+            coords[1],
+            coords[0]
+          );
+          f.distance = Math.round(distance);
+          return f;
+        })
+        .filter((f: any) => f.distance <= radius)
+        .sort((a: any, b: any) => a.distance - b.distance); // Sort by distance
+    }
+
+    const places = filteredFeatures.map(formatOSMPlace);
+    console.log('[Photon] Returning', places.length, 'places after filtering');
+
+    return { success: true, results: places };
+  } catch (error: any) {
+    console.error('Photon nearby search error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Search places by text using Photon API
+ipcMain.handle('places:search-text', async (_, { query, location, radius }) => {
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      limit: '10',
+    });
+
+    // Add location bias if provided
+    if (location) {
+      params.append('lat', String(location.lat));
+      params.append('lon', String(location.lng));
+    }
+
+    const url = `${PHOTON_API_BASE}/?${params.toString()}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Sky-Assistant/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Photon API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const features = data.features || [];
+
+    const places = features.map(formatOSMPlace);
+
+    return { success: true, results: places };
+  } catch (error: any) {
+    console.error('Photon text search error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Geocode address to coordinates using Nominatim
+ipcMain.handle('places:geocode', async (_, { address }) => {
+  try {
+    const params = new URLSearchParams({
+      q: address,
+      format: 'json',
+      limit: '1',
+    });
+
+    const url = `${NOMINATIM_API_BASE}/search?${params.toString()}`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Sky-Assistant/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nominatim API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data || data.length === 0) {
+      return { success: false, error: 'Location not found' };
+    }
+
+    const result = data[0];
+    return {
+      success: true,
+      location: {
+        lat: parseFloat(result.lat),
+        lng: parseFloat(result.lon),
+        display_name: result.display_name,
+      }
+    };
+  } catch (error: any) {
+    console.error('Geocoding error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+}
 
 // App lifecycle
 app.whenReady().then(() => {

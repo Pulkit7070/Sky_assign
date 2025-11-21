@@ -74,7 +74,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Done button clicked');
                     onClose();
                   }}
                   className="text-[15px] text-blue-500 hover:text-blue-600 font-normal"
@@ -103,7 +102,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Theme button clicked:', theme.id);
                           updatePreferences({ theme: theme.id as any });
                         }}
                         className={`flex flex-col items-center gap-3 p-5 rounded-xl transition-all ${

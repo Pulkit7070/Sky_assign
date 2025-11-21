@@ -36,6 +36,39 @@ export interface ElectronAPI {
       error?: string;
     }>;
   };
+  places: {
+    searchNearby: (request: {
+      location: { lat: number; lng: number };
+      radius: number;
+      type?: string;
+      keyword?: string;
+    }) => Promise<{
+      success: boolean;
+      results?: Array<any>;
+      error?: string;
+    }>;
+    searchText: (request: {
+      query: string;
+      location?: { lat: number; lng: number };
+      radius?: number;
+    }) => Promise<{
+      success: boolean;
+      results?: Array<any>;
+      error?: string;
+    }>;
+    geocode: (request: {
+      address: string;
+    }) => Promise<{
+      success: boolean;
+      location?: { lat: number; lng: number; display_name: string };
+      error?: string;
+    }>;
+    getLocationFromIP: () => Promise<{
+      success: boolean;
+      location?: { lat: number; lng: number; city: string; country: string };
+      error?: string;
+    }>;
+  };
 }
 
 declare global {

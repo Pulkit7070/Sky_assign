@@ -1,109 +1,136 @@
-# Sky Desktop Assistant
+# Sky Desktop Assistant ✨
 
-A floating AI desktop assistant with glassmorphism design, Google Calendar integration, and Gemini AI support. Built with Electron, React, and TypeScript.
+Your intelligent floating companion that lives on your desktop. Sky combines AI conversations, smart calendar scheduling, and local place discovery—all wrapped in a beautiful glassmorphism design.
 
-## Features
+## What Makes Sky Special?
 
-**Core Functionality**
+**🤖 Smart AI Conversations**
+Chat naturally with Google Gemini AI. Ask questions, brainstorm ideas, or get help with anything. Your conversations are saved and searchable, so you never lose context.
 
-- Floating assistant with compact and expanded view modes
-- AI-powered conversations using Google Gemini
-- Google Calendar integration with natural language event creation
-- Persistent chat history with conversation management
-- Markdown rendering with code syntax highlighting
+**📅 Calendar That Understands You**
+Just type "Meeting with Sarah tomorrow at 3pm" and Sky knows what to do. No forms, no date pickers—just natural language that creates Google Calendar events instantly.
 
-**User Interface**
+**📍 Find Places Around You**
+Looking for nearby restaurants, cafes, or gas stations? Sky uses free OpenStreetMap data to discover places around you—completely free, no API keys needed.
 
-- Glassmorphism design with backdrop blur effects
-- Smooth animations and transitions
-- Always-on-top frameless window
-- Search across conversations
-- Platform-specific styling (macOS/Windows)
+**🎨 Beautiful & Unobtrusive**
+Floats elegantly on your desktop with a glassmorphic design that adapts to your wallpaper. Expand when you need more space, collapse when you don't. Always there, never in the way.
 
-**Developer Features**
+**⚡ Built for Speed**
+Fast hot-reload development, TypeScript safety, and smooth animations powered by Framer Motion. It just feels good to use.
 
-- TypeScript for type safety
-- Hot reload in development mode
-- State management with Zustand
-- IPC communication for calendar and AI features
+## Getting Started
 
-## Quick Start
+### What You'll Need
 
-### Prerequisites
-
-- Node.js 18 or higher
-- npm or yarn
-- Windows 10+ or macOS 10.15+
+- Node.js 18+ (grab it from [nodejs.org](https://nodejs.org))
+- A modern computer running Windows 10+, macOS 10.15+, or Linux
+- 5 minutes of your time
 
 ### Installation
 
+Clone the repo and get it running:
+
 ```bash
-# Install dependencies
+# Install all the dependencies
 npm install
 
-# Run in development mode
+# Fire it up in dev mode
 npm run electron:dev
 ```
 
-The app launches with hot-reload enabled. Changes to source files trigger automatic updates.
+That's it! The app will launch with hot-reload enabled, so any changes you make will update automatically.
 
-## Configuration
+## Setting It Up
 
-### Gemini AI Setup
+### Gemini AI (Required for chat)
 
-1. Get an API key from Google AI Studio
-2. Create a `.env` file in the project root
-3. Add your key:
+You'll need a free API key from Google:
+
+1. Visit [Google AI Studio](https://aistudio.google.com/apikey)
+2. Create an API key (it's free!)
+3. Create a `.env` file in the project root
+4. Add this line:
    ```
    GEMINI_API_KEY=your_api_key_here
    ```
 
-See [GEMINI_SETUP.md](GEMINI_SETUP.md) for detailed instructions.
+Need more help? Check out [GEMINI_SETUP.md](GEMINI_SETUP.md) for the full walkthrough.
 
-### Google Calendar Setup
+### Google Calendar (Optional)
+
+Want calendar superpowers? Set up OAuth:
 
 1. Create a Google Cloud project
-2. Enable the Google Calendar API
-3. Download OAuth credentials
-4. Save as `google-credentials.json` in the app's user data directory
+2. Enable the Calendar API
+3. Download your OAuth credentials
+4. Save them as `google-credentials.json` in the app's data folder
 
-See [GOOGLE_CALENDAR_SETUP.md](GOOGLE_CALENDAR_SETUP.md) for detailed instructions.
+The first time you create an event, Sky will walk you through authentication. Full guide: [GOOGLE_CALENDAR_SETUP.md](GOOGLE_CALENDAR_SETUP.md)
+
+### OpenStreetMap Places (Already configured!)
+
+The location search feature works right out of the box—no API keys, no billing, completely free. Just start searching for places near you!
 
 ## Building for Production
 
+Ready to share Sky or run it outside of dev mode?
+
 ```bash
-# Build the application
+# Build everything
 npm run build
 
-# Package for distribution
+# Package it up for your OS
 npm run electron:build
 ```
 
+You'll find your shiny new app in the `release/` folder. Double-click and enjoy!
+
 Build artifacts are created in the `release/` directory.
 
-## Usage
+## How to Use Sky
 
 ### Keyboard Shortcuts
 
-| Shortcut                                                  | Action                   |
-| --------------------------------------------------------- | ------------------------ |
-| `Ctrl+Shift+Space` (Windows)<br>`Cmd+Shift+Space` (macOS) | Toggle window visibility |
-| `Ctrl+Enter`                                              | Send message             |
-| `Enter`                                                   | New line in input        |
+| Shortcut                                            | What it does      |
+| --------------------------------------------------- | ----------------- |
+| `Ctrl+Shift+Space` (Win)<br>`Cmd+Shift+Space` (Mac) | Show/hide Sky     |
+| `Ctrl+Enter`                                        | Send your message |
+| `Enter`                                             | Add a new line    |
 
-### Calendar Integration
+### Creating Calendar Events
 
-Create events using natural language:
+Just type naturally—Sky understands:
 
 - "Meeting with John tomorrow at 4pm"
 - "Lunch on Friday at 12:30"
 - "Dentist appointment next Monday at 9am"
+- "Workshop from 2pm to 5pm on the 15th"
 
-The app detects calendar intent, parses event details, and shows a confirmation modal before creating the event.
+Sky will show you a preview before creating anything, so you're always in control.
 
-### AI Conversations
+### Finding Places Nearby
 
-The assistant uses Google Gemini to provide contextual responses. Conversation history is maintained and persisted locally.
+Looking for something close by? Try:
+
+- "Find restaurants near me"
+- "Coffee shops nearby"
+- "Gas stations around here"
+- "Find grocery stores"
+
+Sky uses your location (or IP-based approximation) to search OpenStreetMap and show you relevant places with distances.
+
+### Chat with AI
+
+Ask Sky anything! It uses Google Gemini to:
+
+- Answer questions
+- Help with coding problems
+- Explain complex topics
+- Brainstorm ideas
+- And much more
+
+Your chat history is saved locally, so you can pick up where you left off.
 
 ## Project Structure
 
@@ -133,97 +160,124 @@ sky_assign/
 └── vite.config.ts
 ```
 
-## Technology Stack
+## What's Under the Hood?
 
-- **Electron 28+** - Desktop app framework
-- **React 18** - UI library
-- **TypeScript 5** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS v4** - Styling
-- **Zustand** - State management
-- **Framer Motion** - Animations
-- **Google Generative AI SDK** - Gemini integration
-- **Google APIs** - Calendar integration
-- **chrono-node** - Natural language date parsing
+Built with modern tools for the best experience:
 
-## Development
+- **Electron 28+** — Cross-platform desktop magic
+- **React 18** — Smooth, reactive UI
+- **TypeScript 5** — Catch bugs before they happen
+- **Vite** — Lightning-fast development
+- **Tailwind CSS v4** — Beautiful styling made easy
+- **Zustand** — Simple, powerful state management
+- **Framer Motion** — Buttery smooth animations
+- **Google Gemini AI** — Intelligent conversations
+- **Google Calendar API** — Smart event scheduling
+- **OpenStreetMap** — Free place discovery (Photon + Nominatim)
+- **chrono-node** — Natural language date parsing
 
-### Hot Reload
+## Development Tips
 
-Changes to `.tsx`, `.ts`, and `.css` files trigger automatic reload.
+### Hot Reload is Your Friend
 
-### Debugging
+Edit any `.tsx`, `.ts`, or `.css` file and watch Sky update instantly. No manual restarts needed.
 
-- **Main Process**: Logs appear in terminal
-- **Renderer Process**: Open DevTools with `Ctrl+Shift+I` (Windows) or `Cmd+Opt+I` (macOS)
+### Debugging Made Easy
 
-### State Management
+- **Main Process logs**: Check your terminal
+- **Renderer Process**: Hit `Ctrl+Shift+I` (Win) or `Cmd+Opt+I` (Mac) to open DevTools
 
-The app uses Zustand with localStorage persistence. To reset state:
+### Resetting Everything
 
-1. Open DevTools
-2. Navigate to Application → Local Storage
+If things get wonky, reset the app state:
+
+1. Open DevTools (`Ctrl+Shift+I`)
+2. Go to Application → Local Storage
 3. Delete the `sky-assistant-storage` key
+4. Refresh and start fresh
 
-## Troubleshooting
+## Common Issues & Fixes
 
-### Hotkey Conflicts
+### "The hotkey doesn't work!"
 
-The default shortcut may conflict with other applications. The app tries fallback shortcuts automatically. To customize, edit `electron/main.ts`.
+Sky's default shortcut might clash with another app. Don't worry—Sky tries fallback shortcuts automatically. Want to customize it? Edit the hotkey registration in `electron/main.ts`.
 
-### Window Position Issues
+### "The window disappeared!"
 
-If the window appears off-screen:
+Sometimes Sky ends up off-screen (especially with multi-monitor setups):
 
-1. Close the app
-2. Delete the window state file from your OS's app data directory
-3. Restart the app
+1. Close Sky completely
+2. Delete the window state file from your app data folder
+3. Restart—Sky will reposition itself
 
-### Build Errors on Windows
+### "Build failed on Windows!"
 
-Ensure you have:
+Make sure you have:
 
-- Latest Node.js LTS version
-- Visual Studio Build Tools (for native modules)
-- Run `npm install` with administrator privileges if needed
+- The latest Node.js LTS
+- Visual Studio Build Tools (needed for native modules)
+- Try running `npm install` as administrator if all else fails
 
-### Calendar Not Working
+### "Calendar events aren't creating!"
 
-- Verify `google-credentials.json` is in the correct location
-- Complete OAuth authentication in the browser
-- Check that the Calendar API is enabled in Google Cloud Console
+Quick checklist:
 
-### Empty AI Responses
+- Is `google-credentials.json` in the right place?
+- Did you complete the OAuth login in your browser?
+- Is the Calendar API enabled in your Google Cloud Console?
 
-- Verify your `GEMINI_API_KEY` is set correctly in `.env`
-- Check your internet connection
-- Review terminal logs for specific error messages
+### "AI isn't responding!"
 
-## Platform Notes
+Three things to check:
+
+- Is `GEMINI_API_KEY` in your `.env` file?
+- Is your internet connection working?
+- Check the terminal—error messages will point you in the right direction
+
+### "Location search isn't working!"
+
+The OpenStreetMap integration is free and requires no setup, but:
+
+- Make sure you have an internet connection
+- Check if your browser/system allows location access
+- If geolocation fails, Sky falls back to IP-based location (less accurate but still works!)
+
+## Platform-Specific Polish
 
 ### macOS
 
-- Native vibrancy effects
-- Wallpaper-aware tinting
-- Traffic light button spacing
+Sky uses native vibrancy effects that adapt to your wallpaper, plus proper spacing for traffic light buttons. It feels right at home.
 
 ### Windows
 
-- CSS backdrop blur fallback
-- Windows 11 styled corners
+Styled for Windows 11 with rounded corners and smooth blur effects. Looks great on Windows 10 too!
 
 ### Linux
 
-- Same as Windows
-- Blur effects may not work on all desktop environments
+Same great experience as Windows. Note: blur effects depend on your desktop environment's compositor.
 
 ## License
 
 MIT License - See LICENSE file for details
 
-## Documentation
+## More Documentation
 
-- [Gemini AI Setup](GEMINI_SETUP.md) - Configure AI integration
-- [Google Calendar Setup](GOOGLE_CALENDAR_SETUP.md) - Calendar integration guide
-- [Architecture](ARCHITECTURE.md) - Technical architecture details
-- [Design System](DESIGN_SYSTEM.md) - UI/UX design specifications
+Want to dive deeper?
+
+- **[Gemini AI Setup](GEMINI_SETUP.md)** — Get your API key and configure the AI
+- **[Google Calendar Setup](GOOGLE_CALENDAR_SETUP.md)** — Full OAuth walkthrough
+- **[OpenStreetMap Setup](OSM_SETUP.md)** — Learn about the free location features
+- **[Architecture](ARCHITECTURE.md)** — How Sky is built under the hood
+- **[Design System](DESIGN_SYSTEM.md)** — UI/UX design philosophy and components
+
+## Contributing
+
+Found a bug? Have an idea? Contributions are welcome! Feel free to open an issue or submit a pull request.
+
+## License
+
+MIT License — See the LICENSE file for details.
+
+---
+
+Built with ❤️ using Electron, React, and TypeScript

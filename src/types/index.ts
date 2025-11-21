@@ -35,6 +35,49 @@ export interface UserPreferences {
   enableAnimations: boolean;
 }
 
+// OpenStreetMap + Photon API Types (100% FREE - No API Key Required)
+export interface PlaceLocation {
+  lat: number;
+  lng: number;
+}
+
+export interface OSMPlace {
+  osm_id: string | number;
+  name: string;
+  address: string;
+  location: PlaceLocation;
+  type?: string;
+  category?: string;
+  distance?: number; // Distance in meters from search location
+}
+
+export interface NearbySearchRequest {
+  location: PlaceLocation;
+  radius: number; // in meters
+  type?: string;
+  keyword?: string;
+}
+
+export interface TextSearchRequest {
+  query: string;
+  location?: PlaceLocation;
+  radius?: number;
+}
+
+export interface GeocodeRequest {
+  address: string;
+}
+
+export interface GeocodeResult {
+  location: PlaceLocation;
+  display_name: string;
+}
+
+export interface PlacesResponse {
+  results: OSMPlace[];
+  status?: string;
+}
+
 export interface AppState {
   // Window state
   windowMode: 'compact' | 'expanded';
