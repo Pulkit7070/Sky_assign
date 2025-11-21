@@ -5,6 +5,7 @@ A floating AI desktop assistant with glassmorphism design, Google Calendar integ
 ## Features
 
 **Core Functionality**
+
 - Floating assistant with compact and expanded view modes
 - AI-powered conversations using Google Gemini
 - Google Calendar integration with natural language event creation
@@ -12,6 +13,7 @@ A floating AI desktop assistant with glassmorphism design, Google Calendar integ
 - Markdown rendering with code syntax highlighting
 
 **User Interface**
+
 - Glassmorphism design with backdrop blur effects
 - Smooth animations and transitions
 - Always-on-top frameless window
@@ -19,6 +21,7 @@ A floating AI desktop assistant with glassmorphism design, Google Calendar integ
 - Platform-specific styling (macOS/Windows)
 
 **Developer Features**
+
 - TypeScript for type safety
 - Hot reload in development mode
 - State management with Zustand
@@ -27,6 +30,7 @@ A floating AI desktop assistant with glassmorphism design, Google Calendar integ
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 18 or higher
 - npm or yarn
 - Windows 10+ or macOS 10.15+
@@ -81,15 +85,16 @@ Build artifacts are created in the `release/` directory.
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
+| Shortcut                                                  | Action                   |
+| --------------------------------------------------------- | ------------------------ |
 | `Ctrl+Shift+Space` (Windows)<br>`Cmd+Shift+Space` (macOS) | Toggle window visibility |
-| `Ctrl+Enter` | Send message |
-| `Enter` | New line in input |
+| `Ctrl+Enter`                                              | Send message             |
+| `Enter`                                                   | New line in input        |
 
 ### Calendar Integration
 
 Create events using natural language:
+
 - "Meeting with John tomorrow at 4pm"
 - "Lunch on Friday at 12:30"
 - "Dentist appointment next Monday at 9am"
@@ -144,14 +149,18 @@ sky_assign/
 ## Development
 
 ### Hot Reload
+
 Changes to `.tsx`, `.ts`, and `.css` files trigger automatic reload.
 
 ### Debugging
+
 - **Main Process**: Logs appear in terminal
 - **Renderer Process**: Open DevTools with `Ctrl+Shift+I` (Windows) or `Cmd+Opt+I` (macOS)
 
 ### State Management
+
 The app uses Zustand with localStorage persistence. To reset state:
+
 1. Open DevTools
 2. Navigate to Application → Local Storage
 3. Delete the `sky-assistant-storage` key
@@ -159,26 +168,33 @@ The app uses Zustand with localStorage persistence. To reset state:
 ## Troubleshooting
 
 ### Hotkey Conflicts
+
 The default shortcut may conflict with other applications. The app tries fallback shortcuts automatically. To customize, edit `electron/main.ts`.
 
 ### Window Position Issues
+
 If the window appears off-screen:
+
 1. Close the app
 2. Delete the window state file from your OS's app data directory
 3. Restart the app
 
 ### Build Errors on Windows
+
 Ensure you have:
+
 - Latest Node.js LTS version
 - Visual Studio Build Tools (for native modules)
 - Run `npm install` with administrator privileges if needed
 
 ### Calendar Not Working
+
 - Verify `google-credentials.json` is in the correct location
 - Complete OAuth authentication in the browser
 - Check that the Calendar API is enabled in Google Cloud Console
 
 ### Empty AI Responses
+
 - Verify your `GEMINI_API_KEY` is set correctly in `.env`
 - Check your internet connection
 - Review terminal logs for specific error messages
@@ -186,15 +202,18 @@ Ensure you have:
 ## Platform Notes
 
 ### macOS
+
 - Native vibrancy effects
 - Wallpaper-aware tinting
 - Traffic light button spacing
 
 ### Windows
+
 - CSS backdrop blur fallback
 - Windows 11 styled corners
 
 ### Linux
+
 - Same as Windows
 - Blur effects may not work on all desktop environments
 

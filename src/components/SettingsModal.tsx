@@ -11,90 +11,125 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const { preferences, updatePreferences } = useAppStore();
 
   const themes = [
-    { id: 'light', name: 'Light Mode', icon: '☀️' },
-    { id: 'dark', name: 'Dark Mode', icon: '🌙' },
-    { id: 'system', name: 'System Default', icon: '💻' },
+    { 
+      id: 'light', 
+      name: 'Light',
+      icon: (
+        <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="5" fill="#FFB800" />
+          <path d="M12 1v3M12 20v3M22 12h-3M5 12H2M19.07 4.93l-2.12 2.12M7.05 16.95l-2.12 2.12M19.07 19.07l-2.12-2.12M7.05 7.05L4.93 4.93" stroke="#FFB800" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      )
+    },
+    { 
+      id: 'dark', 
+      name: 'Dark',
+      icon: (
+        <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="#5E5CE6" />
+        </svg>
+      )
+    },
+    { 
+      id: 'system', 
+      name: 'System',
+      icon: (
+        <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="13" rx="2" stroke="#007AFF" strokeWidth="2" fill="none" />
+          <path d="M8 21h8M12 17v4" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="12" cy="10" r="1.5" fill="#007AFF" />
+        </svg>
+      )
+    },
   ];
-
-  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 flex items-center justify-center z-[9999]"
-        onClick={onClose}
-        style={{
-          background: 'radial-gradient(circle at center, rgba(100, 150, 200, 0.12), rgba(50, 100, 150, 0.05))',
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.85, y: 40 }}
-          transition={{ type: "spring", damping: 20, stiffness: 260 }}
-          className="relative max-w-md w-full mx-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div 
-            className="relative bg-white/10 border border-white/30 rounded-[28px] p-7 overflow-hidden"
-            style={{
-              backdropFilter: 'blur(50px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(50px) saturate(180%)',
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08) inset',
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
             }}
-          >
-            {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 bg-linear-to-br from-white/5 via-transparent to-white/5 pointer-events-none" />
-            
-            {/* Mac-style red close button */}
-            <motion.button
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="absolute top-5 left-5 w-3 h-3 rounded-full bg-[#FF5F57] hover:bg-[#FF3B30] shadow-md border border-red-700/20 transition-all z-10"
-              title="Close"
-            />
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ zIndex: 9999, pointerEvents: 'auto' }}
+          />
+          <div className="fixed inset-0 flex items-center justify-center pointer-events-none p-4" style={{ zIndex: 10000 }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+              onClick={(e) => e.stopPropagation()}
+              className="pointer-events-auto w-full max-w-[440px] bg-white rounded-xl shadow-2xl overflow-hidden"
+              style={{ position: 'relative', zIndex: 10001 }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Done button clicked');
+                    onClose();
+                  }}
+                  className="text-[15px] text-blue-500 hover:text-blue-600 font-normal"
+                  style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                >
+                  Done
+                </button>
+                <h3 className="text-[17px] font-semibold text-gray-900">
+                  Settings
+                </h3>
+                <div className="w-12"></div>
+              </div>
 
-            <div className="relative">
-              <h2 className="text-lg font-medium text-gray-800 mb-6 tracking-tight">Settings</h2>
-
-              <div className="space-y-5">
-                {/* Theme Selection */}
+              {/* Content */}
+              <div className="px-5 py-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-[13px] font-semibold text-gray-900 mb-4 uppercase tracking-wide">
                     Appearance
                   </label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     {themes.map((theme) => (
                       <motion.button
                         key={theme.id}
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => updatePreferences({ theme: theme.id as any })}
-                        className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Theme button clicked:', theme.id);
+                          updatePreferences({ theme: theme.id as any });
+                        }}
+                        className={`flex flex-col items-center gap-3 p-5 rounded-xl transition-all ${
                           preferences.theme === theme.id
-                            ? 'bg-white/30 border-2 border-blue-400/60 shadow-lg shadow-blue-500/10'
-                            : 'bg-white/10 border-2 border-white/20 hover:bg-white/20'
+                            ? 'bg-blue-50 ring-2 ring-blue-500'
+                            : 'bg-gray-100 hover:bg-gray-150'
                         }`}
+                        style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                       >
-                        <span className="text-3xl">{theme.icon}</span>
-                        <span className={`text-xs font-medium ${
-                          preferences.theme === theme.id ? 'text-blue-700' : 'text-gray-600'
+                        <div className="flex items-center justify-center">
+                          {theme.icon}
+                        </div>
+                        <span className={`text-[15px] font-medium ${
+                          preferences.theme === theme.id ? 'text-blue-600' : 'text-gray-700'
                         }`}>
-                          {theme.name.split(' ')[0]}
+                          {theme.name}
                         </span>
                       </motion.button>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </motion.div>
-      </motion.div>
+        </>
+      )}
     </AnimatePresence>
   );
 };

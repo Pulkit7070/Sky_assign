@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ParsedEvent } from '../services/nlp-parser';
 
@@ -17,142 +17,214 @@ export const CalendarConfirmModal: React.FC<CalendarConfirmModalProps> = ({
   onCancel,
   isCreating = false,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Resize window when expanding/collapsing additional fields
+  React.useEffect(() => {
+    if (isOpen && window.electronAPI?.requestResize) {
+      const windowHeight = isExpanded ? 780 : 720;
+      window.electronAPI.requestResize({ 
+        width: 650, 
+        height: windowHeight, 
+        anchor: 'center' 
+      });
+    }
+  }, [isExpanded]);
+
   if (!parsedEvent || !parsedEvent.isValid) return null;
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
+      month: 'numeric',
       day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+  };
+
+  const formatTime = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
       hour: 'numeric',
       minute: '2-digit',
+      hour12: true,
     }).format(date);
+  };
+
+  const getTimeRange = () => {
+    const start = parsedEvent.startDateTime;
+    const end = parsedEvent.endDateTime;
+    const diffMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    
+    if (hours > 0 && minutes > 0) {
+      return `${hours} hr ${minutes} min`;
+    } else if (hours > 0) {
+      return `${hours} hr`;
+    } else {
+      return `${minutes} min`;
+    }
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-            onClick={isCreating ? undefined : onCancel}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isCreating) onCancel();
+            }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ zIndex: 9999, pointerEvents: 'auto' }}
           />
-
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[360px]"
-          >
-            <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
+          <div className="fixed inset-0 flex items-center justify-center pointer-events-none p-4" style={{ zIndex: 10000 }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', duration: 0.3 }}
+              onClick={(e) => e.stopPropagation()}
+              className="pointer-events-auto w-full max-w-[440px] bg-white rounded-xl shadow-2xl overflow-hidden"
+              style={{ position: 'relative', zIndex: 10001 }}
+            >
               {/* Header */}
-              <div className="px-5 py-4 border-b border-gray-200/50">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    Create Calendar Event
-                  </h3>
-                  <button
-                    onClick={onCancel}
-                    disabled={isCreating}
-                    className="w-5 h-5 rounded-full bg-gray-200/80 hover:bg-gray-300 transition-colors flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg
-                      className="w-3 h-3 text-gray-600 group-hover:text-gray-800"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="px-5 py-4 space-y-3">
-                {/* Event Title */}
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                    Event
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900 font-medium">
-                    {parsedEvent.title}
-                  </p>
-                </div>
-
-                {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      Starts
-                    </label>
-                    <p className="mt-1 text-xs text-gray-700">
-                      {formatDate(parsedEvent.startDateTime)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      Ends
-                    </label>
-                    <p className="mt-1 text-xs text-gray-700">
-                      {formatDate(parsedEvent.endDateTime)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="px-5 py-4 bg-gray-50/50 border-t border-gray-200/50 flex gap-2">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                 <button
                   onClick={onCancel}
                   disabled={isCreating}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-[15px] text-blue-500 hover:text-blue-600 font-normal disabled:opacity-50"
                 >
                   Cancel
                 </button>
+                <h3 className="text-[17px] font-semibold text-gray-900">
+                  New Event
+                </h3>
                 <button
                   onClick={onConfirm}
                   disabled={isCreating}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="text-[15px] text-blue-500 hover:text-blue-600 font-semibold disabled:opacity-50"
                 >
-                  {isCreating ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      <span>Creating...</span>
-                    </>
-                  ) : (
-                    'Create Event'
-                  )}
+                  {isCreating ? 'Adding...' : 'Add'}
                 </button>
               </div>
-            </div>
-          </motion.div>
+
+              {/* Form Content */}
+              <div className="px-5 py-4 space-y-4">
+                {/* Title Input */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Title</div>
+                  <input
+                    type="text"
+                    defaultValue={parsedEvent.title}
+                    className="flex-1 text-[15px] text-gray-900 bg-transparent border-none outline-none placeholder-gray-400"
+                    placeholder="Event name"
+                  />
+                </div>
+
+                {/* Location Input */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Location</div>
+                  <input
+                    type="text"
+                    className="flex-1 text-[15px] text-gray-900 bg-transparent border-none outline-none placeholder-gray-400"
+                    placeholder="Add location"
+                  />
+                </div>
+
+                {/* All-day toggle */}
+                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                  <div className="text-[15px] text-gray-900">All-day</div>
+                  <label className="relative inline-block w-12 h-7">
+                    <input type="checkbox" className="peer sr-only" />
+                    <div className="w-12 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+                </div>
+
+                {/* Start Date/Time */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Starts</div>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="text-[15px] text-gray-900">
+                      {formatDate(parsedEvent.startDateTime)}
+                    </div>
+                    <div className="text-[15px] text-blue-500">
+                      {formatTime(parsedEvent.startDateTime)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* End Date/Time */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Ends</div>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="text-[15px] text-gray-900">
+                      {formatDate(parsedEvent.endDateTime)}
+                    </div>
+                    <div className="text-[15px] text-blue-500">
+                      {formatTime(parsedEvent.endDateTime)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Duration</div>
+                  <div className="text-[15px] text-gray-400">
+                    {getTimeRange()}
+                  </div>
+                </div>
+
+                {/* Calendar Selection */}
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                  <div className="w-20 text-[15px] text-gray-600">Calendar</div>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <div className="text-[15px] text-gray-900">Personal</div>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Invitees */}
+                {isExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="flex items-center gap-3 pb-3 border-b border-gray-200"
+                  >
+                    <div className="w-20 text-[15px] text-gray-600">Invitees</div>
+                    <input
+                      type="text"
+                      className="flex-1 text-[15px] text-gray-900 bg-transparent border-none outline-none placeholder-gray-400"
+                      placeholder="Add people"
+                    />
+                  </motion.div>
+                )}
+
+                {/* Show More/Less Toggle */}
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="w-full flex items-center justify-center gap-1 py-2 text-[15px] text-blue-500 hover:text-blue-600"
+                >
+                  <span>{isExpanded ? 'Show Less' : 'Show More'}</span>
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

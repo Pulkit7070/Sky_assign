@@ -18,6 +18,7 @@ See [GOOGLE_CALENDAR_SETUP.md](GOOGLE_CALENDAR_SETUP.md) for detailed setup inst
 Type natural language messages to create calendar events:
 
 **Simple Events**
+
 ```
 Meeting tomorrow at 4pm
 Lunch on Friday at 12:30
@@ -25,6 +26,7 @@ Dentist appointment next Monday at 9am
 ```
 
 **Events with Duration**
+
 ```
 Meeting from 2pm to 4pm tomorrow
 Workshop from 9am to 5pm on Friday
@@ -32,6 +34,7 @@ Conference call from 3pm to 3:45pm today
 ```
 
 **Named Events**
+
 ```
 Meeting with John tomorrow at 4pm
 Lunch with Sarah on Friday at 12:30pm
@@ -39,6 +42,7 @@ Coffee with the team next Tuesday at 10am
 ```
 
 **Specific Dates**
+
 ```
 Conference on May 15 at 9am
 Birthday party on December 25 at 6pm
@@ -60,26 +64,31 @@ Team building on the 15th at 2pm
 ### Architecture
 
 **Frontend Components**
+
 - `CalendarConfirmModal.tsx` - Event confirmation UI
 - `FloatingWindow.tsx` - Integration point with detection logic
 
 **Services**
+
 - `nlp-parser.ts` - Natural language date/time parsing using chrono-node
 - `google-calendar.ts` - Calendar API client with OAuth2 flow
 
 **Backend**
+
 - `electron/main.ts` - IPC handlers for calendar operations
 - `electron/preload.ts` - API exposure to renderer
 
 ### Event Parsing
 
 The NLP parser extracts:
+
 - **Title**: Event name with date/time words removed
 - **Date**: Absolute date from relative expressions
 - **Start Time**: When the event begins
 - **End Time**: Either specified or defaults to 1 hour after start
 
 Examples:
+
 - Input: `"Team meeting with Sarah tomorrow at 2pm"`
 - Title: `"Team meeting with Sarah"`
 - Start: `[tomorrow's date] 14:00`
@@ -97,16 +106,19 @@ Examples:
 ### Credentials Location
 
 **Windows**
+
 ```
 C:\Users\<Username>\AppData\Roaming\sky-assistant\google-credentials.json
 ```
 
 **macOS**
+
 ```
 ~/Library/Application Support/sky-assistant/google-credentials.json
 ```
 
 **Linux**
+
 ```
 ~/.config/sky-assistant/google-credentials.json
 ```
@@ -114,33 +126,41 @@ C:\Users\<Username>\AppData\Roaming\sky-assistant\google-credentials.json
 ## Tips for Best Results
 
 **Include both date and time**
+
 - Good: "Meeting tomorrow at 3pm"
 - Poor: "Meeting tomorrow" (missing time)
 
 **Use clear calendar keywords**
+
 - meeting, appointment, lunch, dinner, call, reminder
 
 **Be specific with dates**
+
 - "next Monday" is clearer than just "Monday"
 - "May 15" is clearer than "the 15th"
 
 **Use standard time formats**
+
 - Supported: 3pm, 15:00, 3:30 PM
 
 ## Troubleshooting
 
 ### "Calendar service not initialized"
+
 Check that `google-credentials.json` exists in the correct location for your platform.
 
 ### "Not authenticated"
+
 Complete the OAuth flow by clicking the authentication link when prompted.
 
 ### "Failed to create event"
+
 - Verify internet connection
 - Check that Calendar API is enabled in Google Cloud Console
 - Ensure you have write access to your calendar
 
 ### Events not appearing
+
 - Check the calendar you're signed into
 - Verify the event was created in Google Calendar web interface
 - Check for timezone issues
@@ -170,6 +190,7 @@ Complete the OAuth flow by clicking the authentication link when prompted.
 ## Future Enhancements
 
 Potential additions:
+
 - Recurring event support
 - Add attendees via @mentions
 - Location detection and parsing

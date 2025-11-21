@@ -185,6 +185,17 @@ export const FloatingWindow: React.FC = () => {
   const handleCalendarCancel = () => {
     setIsCalendarModalOpen(false);
     setParsedCalendarEvent(null);
+    
+    // Restore compact window size
+    if (window.electronAPI?.requestResize && windowMode === 'compact') {
+      setTimeout(() => {
+        window.electronAPI.requestResize({ 
+          width: 650, 
+          height: 120, 
+          anchor: 'bottom' 
+        });
+      }, 300); // Small delay to let modal close animation complete
+    }
   };
 
   const handleSendMessage = async (content: string) => {
@@ -210,7 +221,16 @@ export const FloatingWindow: React.FC = () => {
           status: 'sent',
         });
 
-        // Show calendar confirmation modal
+        // Resize window BEFORE showing modal to prevent positioning issues
+        if (window.electronAPI?.requestResize) {
+          await window.electronAPI.requestResize({ 
+            width: 650, 
+            height: 720, 
+            anchor: 'center' 
+          });
+        }
+
+        // Show calendar confirmation modal after resize
         setParsedCalendarEvent(parsedEvent);
         setIsCalendarModalOpen(true);
         return;
@@ -414,6 +434,9 @@ export const FloatingWindow: React.FC = () => {
 
   // Calculate dynamic height based on actual content of current pair
   useEffect(() => {
+    // Don't resize if any modal is open - they handle their own sizing
+    if (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) return;
+    
     if (!window.electronAPI?.requestResize || windowMode !== 'compact') return;
     
     const baseHeight = 120; // Height for input bar
@@ -437,12 +460,19 @@ export const FloatingWindow: React.FC = () => {
     }, 100); // Small delay to ensure content is rendered
     
     return () => clearTimeout(timer);
-  }, [currentPair, currentPairIndex, windowMode]);
+  }, [currentPair, currentPairIndex, windowMode, isCalendarModalOpen, isSettingsModalOpen, isAttachmentModalOpen]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle wheel for navigation between pairs
   const handleWheelNavigation = (e: React.WheelEvent) => {
+    // Prevent scrolling when any modal is open
+    if (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
     if (messagePairs.length <= 1) return;
     
     const scrollContainer = scrollContainerRef.current;
@@ -464,15 +494,19 @@ export const FloatingWindow: React.FC = () => {
   };
 
   return (
-    <motion.div
-      key={currentConversationId}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="h-full flex flex-col pb-6 px-6 bg-transparent"
-      style={{ WebkitAppRegion: 'drag' } as any}
-      onWheel={handleWheelNavigation}
-    >
+    <>
+      <motion.div
+        key={currentConversationId}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="h-full flex flex-col pb-6 px-6 bg-transparent"
+        style={{ 
+          WebkitAppRegion: (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) ? 'no-drag' : 'drag',
+          pointerEvents: (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) ? 'none' : 'auto'
+        } as any}
+        onWheel={handleWheelNavigation}
+      >
       
       {/* Messages Container - shows current pair with navigation */}
       {!isEmpty && currentPair.length > 0 && (
@@ -484,7 +518,10 @@ export const FloatingWindow: React.FC = () => {
           <div 
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
-            style={{ WebkitAppRegion: 'no-drag' } as any}
+            style={{ 
+              WebkitAppRegion: 'no-drag',
+              overflow: (isCalendarModalOpen || isSettingsModalOpen || isAttachmentModalOpen) ? 'hidden' : 'auto'
+            } as any}
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -594,8 +631,21 @@ export const FloatingWindow: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.05, y: -1 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsSettingsModalOpen(true)}
+            onClick={async () => {
+              // Resize window BEFORE opening modal to ensure it fits
+              if (window.electronAPI?.requestResize) {
+                await window.electronAPI.requestResize({ 
+                  width: 650, 
+                  height: 500, 
+                  anchor: 'center' 
+                });
+                // Small delay to ensure resize completes
+                await new Promise(resolve => setTimeout(resolve, 100));
+              }
+              setIsSettingsModalOpen(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full theme-button backdrop-blur-sm text-xs font-medium shadow-sm hover:shadow-md transition-all"
+            style={{ WebkitAppRegion: 'no-drag' } as any}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -617,8 +667,9 @@ export const FloatingWindow: React.FC = () => {
           </motion.button>
         </div>
       </div>
+      </motion.div>
 
-      {/* Modals */}
+      {/* Modals - Rendered outside draggable container */}
       <AttachmentModal 
         isOpen={isAttachmentModalOpen}
         onClose={() => setIsAttachmentModalOpen(false)}
@@ -637,6 +688,6 @@ export const FloatingWindow: React.FC = () => {
         onCancel={handleCalendarCancel}
         isCreating={isCreatingEvent}
       />
-    </motion.div>
+    </>
   );
 };
