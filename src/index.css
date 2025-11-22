@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Import Science Gothic font */
+@import url('https://fonts.googleapis.com/css2?family=Science+Gothic:wght@100..900&display=swap');
+
 /* Make window truly transparent */
 html, body {
   height: 100%;

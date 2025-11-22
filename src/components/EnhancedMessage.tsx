@@ -203,7 +203,7 @@ export const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
         animate={{ opacity: 1, y: 0 }}
         className="my-3"
       >
-        <div className="text-[15px] text-gray-700 font-medium mb-3">
+        <div className="text-[15px] text-gray-900 font-medium mb-3">
           What would you like me to do with this image?
         </div>
         <ActionTabs options={actionOptions} onSelect={onActionSelect} />

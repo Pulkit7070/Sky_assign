@@ -412,7 +412,7 @@ export const ExpandedWindow: React.FC = () => {
         duration: 0.45,
         ease: [0.16, 1, 0.3, 1]
       }}
-      className="h-full flex bg-linear-to-br from-sky-bg/95 via-sky-bg-secondary/90 to-sky-bg/95 backdrop-blur-2xl rounded-sky-xl border border-sky-border/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-clip relative"
+      className="h-full flex bg-white/60 backdrop-blur-lg rounded-sky-xl border border-gray-200/40 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-clip relative"
     >
       {/* Refresh overlay animation */}
       <AnimatePresence>

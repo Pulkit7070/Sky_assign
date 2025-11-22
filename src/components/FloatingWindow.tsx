@@ -263,17 +263,20 @@ export const FloatingWindow: React.FC = () => {
             {
               id: 'describe',
               label: 'Describe this image',
-              description: 'Get a detailed description of what\'s in the image'
+              description: 'Get a detailed description of what\'s in the image',
+              textColor: 'text-gray-900'
             },
             {
               id: 'extract',
               label: 'Extract text from image',
-              description: 'Read and extract any text visible in the image'
+              description: 'Read and extract any text visible in the image',
+              textColor: 'text-gray-900'
             },
             {
               id: 'analyze',
               label: 'Analyze image content',
-              description: 'Analyze objects, colors, and composition'
+              description: 'Analyze objects, colors, and composition',
+              textColor: 'text-gray-900'
             }
           ]
         });
@@ -829,7 +832,7 @@ export const FloatingWindow: React.FC = () => {
             />
           </div>
           {/* Brand Name */}
-          <span className="text-xl font-light tracking-wider theme-text" style={{ letterSpacing: '1.5px' }}>
+          <span className="text-xl font-bold tracking-wider theme-text" style={{ fontFamily: 'Science Gothic, sans-serif', letterSpacing: '3px', fontWeight: 700 }}>
             SKY
           </span>
         </motion.div>

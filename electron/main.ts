@@ -18,6 +18,7 @@ let mainWindow: BrowserWindow | null = null;
 let orbWindow: BrowserWindow | null = null;
 let windowMode: 'compact' | 'expanded' = 'compact';
 let isMainWindowVisible = false;
+let savedExpandedPosition: { x: number; y: number } | null = null;
 
 // Google Calendar service instance
 let calendarService: GoogleCalendarService | null = null;
@@ -173,8 +174,15 @@ function toggleWindowMode(mode?: 'compact' | 'expanded') {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     
-    const x = Math.floor((width - EXPANDED_SIZE.width) / 2);
-    const y = Math.floor((height - EXPANDED_SIZE.height) / 2);
+    // Use saved position if available, otherwise center
+    let x, y;
+    if (savedExpandedPosition) {
+      x = savedExpandedPosition.x;
+      y = savedExpandedPosition.y;
+    } else {
+      x = Math.floor((width - EXPANDED_SIZE.width) / 2);
+      y = Math.floor((height - EXPANDED_SIZE.height) / 2);
+    }
 
     // Enable resizing first
     mainWindow.setResizable(true);
@@ -189,7 +197,24 @@ function toggleWindowMode(mode?: 'compact' | 'expanded') {
     
     // Remove always on top for better UX in expanded mode
     mainWindow.setAlwaysOnTop(false);
+    
+    // Save position when window is moved
+    const savePosition = () => {
+      if (mainWindow && windowMode === 'expanded') {
+        const bounds = mainWindow.getBounds();
+        savedExpandedPosition = { x: bounds.x, y: bounds.y };
+      }
+    };
+    
+    // Update saved position on move
+    mainWindow.on('moved', savePosition);
   } else {
+    // Save current position before collapsing
+    if (previousMode === 'expanded') {
+      const bounds = mainWindow.getBounds();
+      savedExpandedPosition = { x: bounds.x, y: bounds.y };
+    }
+    
     // Collapse to compact
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;

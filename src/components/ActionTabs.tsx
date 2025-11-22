@@ -35,11 +35,11 @@ export const ActionTabs: React.FC<ActionTabsProps> = ({ options, onSelect, selec
           >
             {/* Label */}
             <div className="flex-1 text-left">
-              <div className="text-[15px] font-medium text-gray-700">
+              <div className="text-[15px] font-semibold text-gray-900">
                 {option.label}
               </div>
               {option.description && (
-                <div className="text-[13px] text-gray-500 mt-0.5">
+                <div className="text-[11px] text-gray-900 mt-0.5 font-medium">
                   {option.description}
                 </div>
               )}
@@ -47,7 +47,7 @@ export const ActionTabs: React.FC<ActionTabsProps> = ({ options, onSelect, selec
 
             {/* Arrow */}
             <div className="shrink-0">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
